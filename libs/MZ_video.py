@@ -13,7 +13,7 @@ import glob
 import cv2
 
 # Import local modules
-from libs.MZ_fish import Fish
+from MZ_fish import Fish
 
 # Utilities for processing videos of 96-well plate experiments
 
@@ -95,8 +95,8 @@ def process_video_roi_analysis(video_path, plate, output_folder):
     # Track within each ROI
     led_roi = ((0,0), (48,48))
     led_intensity = []
-#    for f in range(0, numFrames):
-    for f in range(0, 48000):
+    for f in range(0, numFrames):
+#    for f in range(0, 48000):
         
         # Read next frame        
         ret, im = vid.read()

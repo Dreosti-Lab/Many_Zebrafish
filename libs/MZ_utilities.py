@@ -12,9 +12,6 @@ import math
 import glob
 import cv2
 
-# Import local modules
-from libs.MZ_roi import ROI
-
 # Utilities for analysing 96-well plate experiments
 
 # Extract PPI stimulus from LED intensity time series

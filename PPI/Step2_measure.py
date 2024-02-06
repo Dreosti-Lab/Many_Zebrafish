@@ -26,10 +26,10 @@ import matplotlib.pyplot as plt
 import cv2
 
 # Import local modules
-import libs.MZ_fish as MZF
-import libs.MZ_video as MZV
-import libs.MZ_roi as MZR
-import libs.MZ_utilities as MZU
+import MZ_fish as MZF
+import MZ_video as MZV
+import MZ_roi as MZR
+import MZ_utilities as MZU
 
 # Reload modules
 import importlib

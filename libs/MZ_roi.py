@@ -14,7 +14,7 @@ import cv2
 from skimage.measure import profile_line
 
 # Import local modules
-from libs.MZ_fish import Fish
+from MZ_fish import Fish
 
 # Utilities for extracting ROIs from 96-well plate experiments
     

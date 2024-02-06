@@ -25,8 +25,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Import local modules
-import libs.MZ_fish as MZF
-import libs.MZ_roi as MZR
+import MZ_fish as MZF
+import MZ_roi as MZR
 
 # Reload modules
 import importlib

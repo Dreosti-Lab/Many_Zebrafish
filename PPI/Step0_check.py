@@ -25,7 +25,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Import local modules
-import libs.MZ_video as MZV
+import MZ_video as MZV
 
 # Reload modules
 import importlib
