@@ -31,6 +31,8 @@ import MZ_video as MZV
 import importlib
 importlib.reload(MZV)
 
+# ----Load Folder List Here----
+
 # Input path
 input_path = base_path + r'/PPI_Behaviour/240123_nr3c2_PPI_Exp000.avi'
 #input_path = base_path + r'/PPI_Behaviour/231218_herc1_PPI_stim_Exp00.avi'

@@ -22,7 +22,7 @@ def process_video_summary_images(video_path, output_folder):
     
     # Load Video
     vid = cv2.VideoCapture(video_path)
-    numFrames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     
     # Read First Frame
     ret, im = vid.read()
@@ -32,19 +32,19 @@ def process_video_summary_images(video_path, output_folder):
     
     # Alloctae Image Space
     bFrames = 300
-    stepFrames = numFrames // bFrames
+    stepFrames = num_frames // bFrames
     thresholdValue=10
     accumulated_diff = np.zeros((height, width), dtype = float)
     backgroundStack = np.zeros((height, width, bFrames), dtype = float)
     background = np.zeros((height, width), dtype = float)
     bCount = 0
-    for i, f in enumerate(range(0, numFrames, stepFrames)):
+    for i, f in enumerate(range(0, num_frames, stepFrames)):
         
         vid.set(cv2.CAP_PROP_POS_FRAMES, f)
         ret, im = vid.read()
         current = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-        absDiff = cv2.absdiff(previous, current)
-        level, threshold = cv2.threshold(absDiff,thresholdValue,255,cv2.THRESH_TOZERO)
+        abs_diff = cv2.abs_diff(previous, current)
+        level, threshold = cv2.threshold(abs_diff,thresholdValue,255,cv2.THRESH_TOZERO)
         previous = current
        
         # Accumulate differences
@@ -81,7 +81,7 @@ def process_video_roi_analysis(video_path, plate, output_folder):
 
     # Load Video
     vid = cv2.VideoCapture(video_path)
-    numFrames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
@@ -95,7 +95,7 @@ def process_video_roi_analysis(video_path, plate, output_folder):
     # Track within each ROI
     led_roi = ((0,0), (48,48))
     led_intensity = []
-    for f in range(0, numFrames):
+    for f in range(0, num_frames):
 #    for f in range(0, 48000):
         
         # Read next frame        
@@ -103,16 +103,21 @@ def process_video_roi_analysis(video_path, plate, output_folder):
         current = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
         # Compute frame-by-frame difference
-        absDiff = cv2.absdiff(previous, current)
+        abs_diff = cv2.abs_diff(previous, current)
         previous = current
 
         # Process each fish ROI
         for fish in plate:
             # Extract Crop Region for motion estimate
-            crop = get_ROI_crop(absDiff, (fish.ul, fish.lr))
+            crop = get_ROI_crop(abs_diff, (fish.ul, fish.lr))
             threshed = crop[crop > 10]
             motion = np.sum(threshed)
             fish.motion.append(motion)
+
+            # Extract Crop Region for tracking
+            crop = get_ROI_crop(current, (fish.ul, fish.lr))
+            # - Subtract background
+            # - ??
 
         # Process LED
         crop = get_ROI_crop(current, led_roi)
@@ -120,7 +125,7 @@ def process_video_roi_analysis(video_path, plate, output_folder):
         intensity = np.sum(threshed)
         led_intensity.append(intensity)
 
-        print(f'{numFrames-f}: {plate[44].motion[f]}')
+        print(f'{num_frames-f}: {plate[44].motion[f]}')
     return plate, led_intensity
 
 
@@ -134,9 +139,9 @@ def get_ROI_crop(image, roi):
     return crop
     
 # Return ROI size from ROI list
-def get_ROI_size(ROIs, numROi):
-    width = np.int(ROIs[numROi, 2])
-    height = np.int(ROIs[numROi, 3])
+def get_ROI_size(ROIs, num_ROI):
+    width = np.int(ROIs[num_ROI, 2])
+    height = np.int(ROIs[num_ROI, 3])
     
     return width, height
 

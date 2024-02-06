@@ -33,6 +33,8 @@ import importlib
 importlib.reload(MZF)
 importlib.reload(MZR)
 
+# ----Load Folder List Here----
+
 # Input path
 input_path = base_path + r'/PPI_Behaviour/output/difference.png'
 
@@ -42,7 +44,7 @@ output_folder = base_path + r'/PPI_Behaviour/output'
 # Create plate structure
 plate = MZF.create_plate()
 
-# Process summary images
+# Automatically detect ROIs
 plate = MZR.find_rois(input_path, plate, output_folder)
 
 #FIN
