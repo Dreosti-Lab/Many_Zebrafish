@@ -20,3 +20,6 @@ x64
 
 # Temporay Folder
 _tmp/
+
+# Environment file
+.env

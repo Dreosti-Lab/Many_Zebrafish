@@ -4,20 +4,17 @@ Automatically extract ROIs from a 96-well experiment
 
 @author: kamnpff (Adam Kampff)
 """
-# -----------------------------------------------------------------------------
-# Set "Library Path" - Social Zebrafish Repo
-lib_path = r'/home/kampff/Repos/Dreosti-Lab/Many_Zebrafish/libs'
-#-----------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
-# Set "Base Path" for this analysis session
-base_path = r'/run/media/kampff/Data/Zebrafish/'
-#base_path = r'\\128.40.155.187\data\D R E O S T I   L A B'
-# -----------------------------------------------------------------------------
+# Load Environment file and variables
+import os
+from dotenv import load_dotenv
+load_dotenv()
+libs_path = os.getenv('LIBS_PATH')
+base_path = os.getenv('BASE_PATH')
 
 # Set Library Paths
 import sys
-sys.path.append(lib_path)
+sys.path.append(libs_path)
 
 # Import useful libraries
 import os
@@ -27,24 +24,28 @@ import matplotlib.pyplot as plt
 # Import local modules
 import MZ_fish as MZF
 import MZ_roi as MZR
+import MZ_utilities as MZU
 
 # Reload modules
 import importlib
 importlib.reload(MZF)
 importlib.reload(MZR)
+importlib.reload(MZU)
 
-# ----Load Folder List Here----
+# Load list of video paths
+path_list_path = base_path + "/PPI_Behaviour/path_list.txt"
+path_list = MZU.load_path_list(path_list_path)
 
-# Input path
-input_path = base_path + r'/PPI_Behaviour/output/difference.png'
+# Automatically detect ROIs for video paths (*.avi) in path_list
+for path in path_list:
+    # Create Paths
+    output_folder = os.path.dirname(base_path + path) + '/analysis'
+    image_path = output_folder + '/difference.png'
 
-# Output folder
-output_folder = base_path + r'/PPI_Behaviour/output'
+    # Create plate structure
+    plate = MZF.create_plate()
 
-# Create plate structure
-plate = MZF.create_plate()
-
-# Automatically detect ROIs
-plate = MZR.find_rois(input_path, plate, output_folder)
+    # Automatically detect ROIs
+    plate = MZR.find_rois(image_path, plate, output_folder)
 
 #FIN

@@ -19,7 +19,8 @@ class Fish:
         self.y = []
         self.area = []
         self.motion = []
-        self.threshold = None
+        self.threshold_background = None
+        self.threshold_motion = None
         self.background = None
 
     def set_roi(self, _ul, _lr):
@@ -36,7 +37,8 @@ class Fish:
         c1 = self.ul[0]
         c2 = self.lr[0]
         self.background = image[r1:r2, c1:c2]
-        self.threshold = np.median(self.background[:])/7
+        self.threshold_background = np.median(self.background[:])/15
+        self.threshold_motion = np.median(self.background[:])/30
 
 # Utilities for working with Fish Class
 

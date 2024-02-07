@@ -4,20 +4,17 @@ Quickly check the result of a 96-well experiment
 
 @author: kamnpff (Adam Kampff)
 """
-# -----------------------------------------------------------------------------
-# Set "Library Path" - Social Zebrafish Repo
-lib_path = r'/home/kampff/Repos/Dreosti-Lab/Many_Zebrafish/libs'
-#-----------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
-# Set "Base Path" for this analysis session
-base_path = r'/run/media/kampff/Data/Zebrafish/'
-#base_path = r'\\128.40.155.187\data\D R E O S T I   L A B'
-# -----------------------------------------------------------------------------
+# Load Environment file and variables
+import os
+from dotenv import load_dotenv
+load_dotenv()
+libs_path = os.getenv('LIBS_PATH')
+base_path = os.getenv('BASE_PATH')
 
 # Set Library Paths
 import sys
-sys.path.append(lib_path)
+sys.path.append(libs_path)
 
 # Import useful libraries
 import os
@@ -26,21 +23,28 @@ import matplotlib.pyplot as plt
 
 # Import local modules
 import MZ_video as MZV
+import MZ_utilities as MZU
 
 # Reload modules
 import importlib
 importlib.reload(MZV)
+importlib.reload(MZU)
 
-# ----Load Folder List Here----
+# Load list of video paths
+path_list_path = base_path + "/PPI_Behaviour/path_list.txt"
+path_list = MZU.load_path_list(path_list_path)
 
-# Input path
-input_path = base_path + r'/PPI_Behaviour/240123_nr3c2_PPI_Exp000.avi'
-#input_path = base_path + r'/PPI_Behaviour/231218_herc1_PPI_stim_Exp00.avi'
+# Process summary images for video paths (*.avi) in path_list
+for path in path_list:
+    # Create Paths
+    video_path = base_path + path
+    output_folder = os.path.dirname(video_path) + '/analysis'
 
-# Output folder
-output_folder = base_path + r'/PPI_Behaviour/output'
+    # Create output folder
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
-# Process summary images
-MZV.process_video_summary_images(input_path, output_folder)
+    # Process
+    MZV.process_video_summary_images(video_path, output_folder)
 
 #FIN

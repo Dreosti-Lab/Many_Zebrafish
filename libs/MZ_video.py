@@ -43,7 +43,7 @@ def process_video_summary_images(video_path, output_folder):
         vid.set(cv2.CAP_PROP_POS_FRAMES, f)
         ret, im = vid.read()
         current = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-        abs_diff = cv2.abs_diff(previous, current)
+        abs_diff = cv2.absdiff(previous, current)
         level, threshold = cv2.threshold(abs_diff,thresholdValue,255,cv2.THRESH_TOZERO)
         previous = current
        
@@ -71,6 +71,7 @@ def process_video_summary_images(video_path, output_folder):
     # Compute Background Frame (median or mode)
     background = np.median(backgroundStack, axis = 2)
 
+    # Store
     cv2.imwrite(output_folder + r'/difference.png', equ)    
     cv2.imwrite(output_folder + r'/background.png', background)
 
@@ -82,8 +83,8 @@ def process_video_roi_analysis(video_path, plate, output_folder):
     # Load Video
     vid = cv2.VideoCapture(video_path)
     num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-    width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    frame_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     # Load first frame
     ret, im = vid.read()
@@ -96,28 +97,49 @@ def process_video_roi_analysis(video_path, plate, output_folder):
     led_roi = ((0,0), (48,48))
     led_intensity = []
     for f in range(0, num_frames):
-#    for f in range(0, 48000):
+#    for f in range(0, 5200): # Debug
         
-        # Read next frame        
+        # Read next frame and convert to grayscale
         ret, im = vid.read()
         current = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
         # Compute frame-by-frame difference
-        abs_diff = cv2.abs_diff(previous, current)
+        abs_diff = cv2.absdiff(previous, current)
         previous = current
 
         # Process each fish ROI
         for fish in plate:
-            # Extract Crop Region for motion estimate
+            # Motion estimation
             crop = get_ROI_crop(abs_diff, (fish.ul, fish.lr))
-            threshed = crop[crop > 10]
+            threshed = crop[crop > fish.threshold_motion]
             motion = np.sum(threshed)
             fish.motion.append(motion)
 
-            # Extract Crop Region for tracking
+            # Centroid tracking
             crop = get_ROI_crop(current, (fish.ul, fish.lr))
-            # - Subtract background
-            # - ??
+            subtraction = cv2.subtract(fish.background, crop)
+            level, threshold = cv2.threshold(subtraction,fish.threshold_background,255,cv2.THRESH_BINARY)
+            threshold = np.uint8(threshold)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+            closing = cv2.morphologyEx(threshold, cv2.MORPH_CLOSE, kernel)
+            contours, hierarchy = cv2.findContours(closing,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+            if len(contours) == 0:
+                fish.x.append(fish.ul[0])
+                fish.y.append(fish.ul[1])
+                fish.area.append(-1.0)
+            else:
+                largest_cnt, area = get_largest_contour(contours)
+                if area == 0.0:
+                    fish.x.append(fish.ul[0])
+                    fish.y.append(fish.ul[1])
+                    fish.area.append(-1.0)
+                else:
+                    M = cv2.moments(largest_cnt)
+                    cx = M["m10"] / M["m00"]
+                    cy = M["m01"] / M["m00"]
+                    fish.x.append(fish.ul[0] + cx)
+                    fish.y.append(fish.ul[1] + cy)
+                    fish.area.append(area)
 
         # Process LED
         crop = get_ROI_crop(current, led_roi)

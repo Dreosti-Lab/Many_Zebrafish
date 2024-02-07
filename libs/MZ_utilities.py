@@ -42,4 +42,13 @@ def extract_ppi_stimuli(led_intensity):
             
     return single_pulses, paired_pulses
 
+# Load path list
+def load_path_list(path_list_path):
+    tmp_path_list = open(path_list_path,'r').read().split('\n')
+    path_list = []
+    for path in tmp_path_list:
+        if path != '':
+            path_list.append(path)
+    return path_list
+
 #FIN

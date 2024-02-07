@@ -5,8 +5,16 @@ A set of Python analysis scripts for analysing behaviour of zebrafish in 96-well
 - Python3
 - Numpy
 - Matplotlib
-- OpenCV
+- OpenCV (opencv-python)
 - Scikit-Image
+- python-dotenv
+
+## Environment
+You must create a ".env" file in the root directory of the Repo with the following contents:
+```txt
+LIBS_PATH="/home/kampff/Repos/Dreosti-Lab/Many_Zebrafish/libs"
+BASE_PATH="/run/media/kampff/Data/Zebrafish/"
+```
 
 ## Analysis Steps
 Pre-Analysis:
