@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Quickly check the result of a 96-well PPI experiment
+Quickly check the result of a 96-well Sleep experiment
 
 @author: kamnpff (Adam Kampff)
 """
@@ -31,7 +31,7 @@ importlib.reload(MZV)
 importlib.reload(MZU)
 
 # Load list of video paths
-path_list_path = base_path + "/PPI_Behaviour/path_list.txt"
+path_list_path = base_path + "/Sleep_Behaviour/path_list.txt"
 path_list = MZU.load_path_list(path_list_path)
 
 # Process summary images for video paths (*.avi) in path_list
@@ -45,6 +45,6 @@ for path in path_list:
         os.makedirs(output_folder)
 
     # Process
-    MZV.process_video_summary_images(video_path, 300, -1, output_folder)
+    MZV.process_video_summary_images(video_path, 300, 1000, output_folder)
 
 #FIN

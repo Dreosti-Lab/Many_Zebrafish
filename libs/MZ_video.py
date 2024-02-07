@@ -18,7 +18,7 @@ from MZ_fish import Fish
 # Utilities for processing videos of 96-well plate experiments
 
 # Process Video : Make Summary Images
-def process_video_summary_images(video_path, output_folder):
+def process_video_summary_images(video_path, stack_size, step_frames, output_folder):
     
     # Load Video
     vid = cv2.VideoCapture(video_path)
@@ -31,33 +31,33 @@ def process_video_summary_images(video_path, output_folder):
     height = np.size(previous, 0)
     
     # Alloctae Image Space
-    bFrames = 300
-    stepFrames = num_frames // bFrames
-    thresholdValue=10
+    if step_frames <= 0:
+        step_frames = num_frames // stack_size
+    threshold_value = 10
     accumulated_diff = np.zeros((height, width), dtype = float)
-    backgroundStack = np.zeros((height, width, bFrames), dtype = float)
+    background_stack = np.zeros((height, width, stack_size), dtype = float)
     background = np.zeros((height, width), dtype = float)
-    bCount = 0
-    for i, f in enumerate(range(0, num_frames, stepFrames)):
+    stack_count = 0
+    for i, f in enumerate(range(0, stack_size * step_frames, step_frames)):
         
         vid.set(cv2.CAP_PROP_POS_FRAMES, f)
         ret, im = vid.read()
         current = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
         abs_diff = cv2.absdiff(previous, current)
-        level, threshold = cv2.threshold(abs_diff,thresholdValue,255,cv2.THRESH_TOZERO)
+        level, threshold = cv2.threshold(abs_diff,threshold_value,255,cv2.THRESH_TOZERO)
         previous = current
        
         # Accumulate differences
         accumulated_diff = accumulated_diff + threshold
         
         # Add to background stack
-        if(bCount < bFrames):
-            #cv2.imwrite(output_folder + f'/current_{bCount}.png', current)
-            backgroundStack[:,:,bCount] = current
-            bCount = bCount + 1
+        if(stack_count < stack_size):
+            #cv2.imwrite(output_folder + f'/current_{stack_count}.png', current)
+            background_stack[:,:,stack_count] = current
+            stack_count = stack_count + 1
         
         # Report
-        print(f'{f}({bCount})')
+        print(f'{f}({stack_count})')
 
     vid.release()
 
@@ -69,7 +69,7 @@ def process_video_summary_images(video_path, output_folder):
     equ = cv2.equalizeHist(accumulated_diff)
 
     # Compute Background Frame (median or mode)
-    background = np.median(backgroundStack, axis = 2)
+    background = np.median(background_stack, axis = 2)
 
     # Store
     cv2.imwrite(output_folder + r'/difference.png', equ)    
@@ -78,11 +78,12 @@ def process_video_summary_images(video_path, output_folder):
     return
 
 # Process Video : ROI analysis
-def process_video_roi_analysis(video_path, plate, output_folder):
+def process_video_roi_analysis(video_path, plate, intensity_roi, num_frames, output_folder):
 
     # Load Video
     vid = cv2.VideoCapture(video_path)
-    num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    if num_frames < 0:
+        num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     frame_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
@@ -94,10 +95,8 @@ def process_video_roi_analysis(video_path, plate, output_folder):
     vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
     
     # Track within each ROI
-    led_roi = ((0,0), (48,48))
-    led_intensity = []
+    region_intensity = []
     for f in range(0, num_frames):
-#    for f in range(0, 5200): # Debug
         
         # Read next frame and convert to grayscale
         ret, im = vid.read()
@@ -142,13 +141,15 @@ def process_video_roi_analysis(video_path, plate, output_folder):
                     fish.area.append(area)
 
         # Process LED
-        crop = get_ROI_crop(current, led_roi)
+        crop = get_ROI_crop(current, intensity_roi)
         threshed = crop[crop > 10]
         intensity = np.sum(threshed)
-        led_intensity.append(intensity)
+        region_intensity.append(intensity)
 
-        print(f'{num_frames-f}: {plate[44].motion[f]}')
-    return plate, led_intensity
+        # Report
+        if (f % 1000) == 0:
+            print(f'{num_frames-f}: {plate[44].motion[f]}')
+    return plate, region_intensity
 
 
 # Return cropped image from ROI list

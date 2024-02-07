@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Measure behaviour in a 96-well PPI experiment
+Measure behaviour in a 96-well Sleep experiment
 
 @author: kamnpff (Adam Kampff)
 """
@@ -36,7 +36,7 @@ importlib.reload(MZR)
 importlib.reload(MZU)
 
 # Load list of video paths
-path_list_path = base_path + "/PPI_Behaviour/path_list.txt"
+path_list_path = base_path + "/Sleep_Behaviour/path_list.txt"
 path_list = MZU.load_path_list(path_list_path)
 
 # Meaure behaviour for video paths (*.avi) in path_list
@@ -45,7 +45,7 @@ for path in path_list:
     video_path = base_path + path
     output_folder = os.path.dirname(video_path) + '/analysis'
     roi_path = output_folder + '/roi.csv'
-    led_path = output_folder + '/led.csv'
+    intensity_path = output_folder + '/intensity.csv'
     background_path = output_folder + '/background.png'
 
     # Create plate structure
@@ -62,8 +62,8 @@ for path in path_list:
     plate = MZF.set_backgrounds(background, plate)
 
     # Process behaviour
-    led_roi = ((0,0), (48,48))
-    plate, led_intensity = MZV.process_video_roi_analysis(video_path, plate, led_roi, -1, output_folder)
+    intensity_roi = ((50,250), (80,850))
+    plate, intensity = MZV.process_video_roi_analysis(video_path, plate, intensity_roi, 50000, output_folder)
 
     # Save fish behaviour
     fish_folder = output_folder + '/fish'
@@ -78,8 +78,8 @@ for path in path_list:
         fish_behaviour[:,3] = np.array(fish.area)
         np.savetxt(fish_path, fish_behaviour, delimiter=',')
 
-    # Save led intensity
-    led_intensity_array = np.array(led_intensity)
-    np.savetxt(led_path, led_intensity_array, fmt='%d')
+    # Save intensity
+    intensity_array = np.array(intensity)
+    np.savetxt(intensity_path, intensity_array, fmt='%d')
 
 #FIN

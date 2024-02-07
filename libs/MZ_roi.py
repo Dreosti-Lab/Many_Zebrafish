@@ -19,13 +19,14 @@ from MZ_fish import Fish
 # Utilities for extracting ROIs from 96-well plate experiments
     
 # Find ROIs
-def find_rois(image_path, plate, output_folder):
+def find_rois(image_path, plate, blur, output_folder):
     # Load image and convert to grayscale
     image  = cv2.imread(image_path)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gauss = cv2.GaussianBlur(gray,(blur,blur),blur // 2, blur // 2)
 
     # Find extremes
-    start_x, end_x, start_y, end_y = find_extremes(gray)
+    start_x, end_x, start_y, end_y = find_extremes(gauss)
     arena_width = end_x - start_x
     arena_height = end_y - start_y
     roi_width = arena_width / 12.0
@@ -43,7 +44,7 @@ def find_rois(image_path, plate, output_folder):
         y1_range = np.array([start_y])
         x2_range = np.arange(internal_x-10, internal_x+10)
         y2_range = np.array([end_y])
-        start, end = minimal_line(gray, x1_range, y1_range, x2_range, y2_range)
+        start, end = minimal_line(gauss, x1_range, y1_range, x2_range, y2_range)
         vert_dividers.append((start,end))
         print(f'Verts: {col}: {start},{end}')
         display = cv2.line(display, (start), (end), (0,0,255), 1)
@@ -57,7 +58,7 @@ def find_rois(image_path, plate, output_folder):
         y1_range = np.arange(internal_y-10, internal_y+10)
         x2_range = np.array([end_x])
         y2_range = np.arange(internal_y-10, internal_y+10)
-        start, end = minimal_line(gray, x1_range, y1_range, x2_range, y2_range)
+        start, end = minimal_line(gauss, x1_range, y1_range, x2_range, y2_range)
         horz_dividers.append((start,end))
         print(f'Horzs: {row}: {start},{end}')
         display = cv2.line(display, (start), (end), (0,0,255), 1)
@@ -83,6 +84,7 @@ def find_rois(image_path, plate, output_folder):
 
     # Store ROI image
     ret = cv2.imwrite(output_folder + r'/roi.png', display)
+    ret = cv2.imwrite(output_folder + r'/blurred.png', gauss)
 
     # Store ROIs (positions)
     roi_path = output_folder + '/roi.csv'
