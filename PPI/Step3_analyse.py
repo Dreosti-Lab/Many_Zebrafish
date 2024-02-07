@@ -87,6 +87,7 @@ for path in path_list:
         plt.yticks([])
     plt.savefig(figures_folder + '/led_intensity.png', dpi=180)
     plt.cla()
+    plt.close()
 
     # Load fish behaviour
     plate_behaviour = np.zeros((num_frames, 4, 96), dtype=np.float32)
@@ -122,8 +123,8 @@ for path in path_list:
         pre_frames = 50
         post_frames = 150
         single_responses = np.zeros((len(single_pulses), pre_frames+post_frames))
-        for i, p in enumerate(single_pulses):
-            single_responses[i, :] = motion[(p-(pre_frames+1)):(p+post_frames-1)]
+        for j, p in enumerate(single_pulses):
+            single_responses[j, :] = motion[(p-(pre_frames+1)):(p+post_frames-1)]
         plt.subplot(2,3,4)
         plt.title('Single Pulse')
         plt.vlines(pre_frames, 0, np.max(single_responses), color=[0,1,0,1])
@@ -131,9 +132,9 @@ for path in path_list:
         plt.plot(np.mean(single_responses, axis=0), color=[1.0,0,0,1.0])
         plt.ylim(0, np.max(motion))
         paired_responses = np.zeros((len(paired_pulses), pre_frames+post_frames))
-        for i, pair in enumerate(paired_pulses):
+        for j, pair in enumerate(paired_pulses):
             p = pair[0]
-            paired_responses[i, :] = motion[(p-(pre_frames+1)):(p+post_frames-1)]
+            paired_responses[j, :] = motion[(p-(pre_frames+1)):(p+post_frames-1)]
         plt.subplot(2,3,5)
         plt.title('Paired Pulse')
         plt.vlines(pre_frames, 0, np.max(paired_responses), color=[0,1,0,1])
@@ -146,5 +147,6 @@ for path in path_list:
         plt.savefig(figure_path, dpi=180)
         print(i)
         plt.cla()
+        plt.close()
 
 #FIN

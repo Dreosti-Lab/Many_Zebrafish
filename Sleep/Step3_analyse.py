@@ -74,7 +74,8 @@ for path in path_list:
     plt.plot(intensity)
     plt.savefig(figures_folder + '/intensity.png', dpi=180)
     plt.cla()
-
+    plt.close()
+    
     # Load fish behaviour
     plate_behaviour = np.zeros((num_frames, 4, 96), dtype=np.float32)
     fish_folder = output_folder + '/fish'
@@ -109,5 +110,6 @@ for path in path_list:
         plt.savefig(figure_path, dpi=180)
         print(i)
         plt.cla()
+        plt.close()
 
 #FIN
