@@ -127,6 +127,12 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_backgrou
     ret, im = vid.read()
     previous = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
+    # Set previous crops for each fish
+    for fish in plate:
+        # Crop ROI
+        crop = get_ROI_crop(previous, (fish.ul, fish.lr))
+        fish.previous = np.copy(crop)
+
     # Reset video
     vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
     
@@ -135,122 +141,17 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_backgrou
     report_interval = 100
     start_time = time.time()
     for f in range(0, num_frames):
-        
+
         # Read next frame and convert to grayscale
         ret, im = vid.read()
-        current = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-
-        # Compute frame-by-frame difference
-        abs_diff = cv2.absdiff(previous, current)
-        previous = current
+        frame = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
         # Track each fish ROI
         for fish in plate:
-            # Crop ROI
-            crop = get_ROI_crop(current, (fish.ul, fish.lr))
-
-            # Absolute difference from background
-            abs_diff = cv2.absdiff(fish.background, crop)
-
-            # Threshold
-            level, threshold = cv2.threshold(abs_diff,fish.threshold_background,255,cv2.THRESH_BINARY)
-
-            # Morphological close
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
-            closing = cv2.morphologyEx(threshold, cv2.MORPH_CLOSE, kernel)
-
-            # Find contours
-            contours, hierarchy = cv2.findContours(closing,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-
-            # If no contours, continue
-            if len(contours) == 0:
-                fish.add_behaviour(fish.ul[0], fish.ul[1], 0.0, -1.0, 0.0)
-                continue
-
-            # Get largest contour
-            largest_cnt, area = get_largest_contour(contours)
-
-            # If no area, continue
-            if area == 0.0:
-                fish.add_behaviour(fish.ul[0], fish.ul[1], 0.0, -1.0, 0.0)
-                continue
-            
-            # Create Binary Mask Image
-            mask = np.zeros(crop.shape,np.uint8)
-
-            # Draw largest contour into Mask Image (1 for Fish, 0 for Background)
-            cv2.drawContours(mask,[largest_cnt],0,1,-1) # -1 draw the contour filled
-
-            # Extract pixel points
-            pixelpoints = np.transpose(np.nonzero(mask))
-
-             # Get Area (again)
-            area = np.size(pixelpoints, 0)
-
-            # ---------------------------------------------------------------------------------
-            # Compute Frame-by-Frame Motion (absolute changes above threshold)
-            # - Normalize by total abs(differece) from background
-            if (f != 0):
-                # Measure total absolute intensity difference from background (above threshold)
-                abs_diff[abs_diff < fish.threshold_motion] = 0
-                total_abs_diff = np.sum(np.abs(abs_diff))
-                
-                # Measure frame-by-frame absolute intensity difference and normalize
-                frame_by_frame_abs_diff = np.abs(np.float32(fish.previous) - np.float32(crop)) / 2 # Adjust for increases and decreases across frames
-                frame_by_frame_abs_diff[frame_by_frame_abs_diff < fish.threshold_motion] = 0
-                if (total_abs_diff != 0) and len(frame_by_frame_abs_diff != 0):
-                    motion = np.sum(np.abs(frame_by_frame_abs_diff))/total_abs_diff
-                else:
-                    motion = 0.0
-            else:
-                motion = 0.0
-            # ---------------------------------------------------------------------------------
-            # Decide whether to update the background
-            if fish.frames_since_background_update < max_background_rate:
-                fish.frames_since_background_update += 1
-            else:
-                if motion > 0.1:
-                    fish.update_background(crop)
-
-            # Update "previous" crop
-            fish.previous = np.copy(crop)
-
-            # Extract fish pixel values (difference from background)
-            r = pixelpoints[:,0]
-            c = pixelpoints[:,1]
-            values = abs_diff[r,c].astype(float)
-
-            # Compute centroid
-            r = r.astype(float)
-            c = c.astype(float)
-            acc = np.sum(values)
-            cx = np.float32(np.sum(c*values))/acc
-            cy = np.float32(np.sum(r*values))/acc
-
-            # Compute orientation
-            line = cv2.fitLine(pixelpoints, distType=cv2.DIST_L2, param=0, reps=0.01, aeps=0.01)
-            vx = line[1][0]
-            vy = line[0][0]
-
-            # Score points
-            dx = c - cx
-            dy = r - cy
-            d = np.vstack((dx, dy))
-            d_norm = d/np.sqrt(np.sum(d*d, axis=0)).T
-            dirs = np.dot(np.array([vx, vy]), d_norm) * values
-            acc_dir = np.sum(dirs)
-
-            # Determine heading (0 deg to right, 90 deg up)
-            if acc_dir > 0:
-                heading = math.atan2((-vy), (vx)) * (360.0/(2*np.pi))
-            else:
-                heading = math.atan2((vy), (-vx)) * (360.0/(2*np.pi))
-
-            # Store
-            fish.add_behaviour(fish.ul[0] + cx, fish.ul[1] + cy, heading, area, motion)
+            ret = track_fish(frame, fish)
         
         # Process LED
-        crop = get_ROI_crop(current, intensity_roi)
+        crop = get_ROI_crop(frame, intensity_roi)
         threshed = crop[crop > 10]
         intensity = np.sum(threshed)
         region_intensity.append(intensity)
@@ -261,7 +162,7 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_backgrou
             print(f'{num_frames-f}: Elapsed {end_time - start_time:.3f} s')
             start_time = time.time()
             cv2.imwrite(output_folder + f'/debug/{f:08d}_background.png', fish.background)
-            crop = get_ROI_crop(current, (plate[95].ul, plate[95].lr))
+            crop = get_ROI_crop(frame, (plate[95].ul, plate[95].lr))
             cv2.imwrite(output_folder + f'/debug/{f:08d}_crop.png', crop)
 
     # Cleanup
@@ -308,4 +209,107 @@ def get_largest_contour(contours):
     else:
         return cnt, max_area
 
+# Fish tracking algorithm
+def track_fish(frame, fish):
+        # Crop ROI
+        crop = get_ROI_crop(frame, (fish.ul, fish.lr))
+
+        # Absolute difference from background
+        abs_diff = cv2.absdiff(fish.background, crop)
+
+        # Threshold
+        level, threshold = cv2.threshold(abs_diff,fish.threshold_background,255,cv2.THRESH_BINARY)
+
+        # Morphological close
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+        closing = cv2.morphologyEx(threshold, cv2.MORPH_CLOSE, kernel)
+
+        # Find contours
+        contours, hierarchy = cv2.findContours(closing,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+
+        # If no contours, continue
+        if len(contours) == 0:
+            fish.add_behaviour(fish.ul[0], fish.ul[1], 0.0, -1.0, 0.0)
+            return
+
+        # Get largest contour
+        largest_cnt, area = get_largest_contour(contours)
+
+        # If no area, continue
+        if area == 0.0:
+            fish.add_behaviour(fish.ul[0], fish.ul[1], 0.0, -1.0, 0.0)
+            return
+        
+        # Create Binary Mask Image
+        mask = np.zeros(crop.shape,np.uint8)
+
+        # Draw largest contour into Mask Image (1 for Fish, 0 for Background)
+        cv2.drawContours(mask,[largest_cnt],0,1,-1) # -1 draw the contour filled
+
+        # Extract pixel points
+        pixelpoints = np.transpose(np.nonzero(mask))
+
+            # Get Area (again)
+        area = np.size(pixelpoints, 0)
+
+        # ---------------------------------------------------------------------------------
+        # Compute Frame-by-Frame Motion (absolute changes above threshold)
+        # - Normalize by total abs(differece) from background
+        abs_diff[abs_diff < fish.threshold_motion] = 0
+        total_abs_diff = np.sum(np.abs(abs_diff))
+        
+        # Measure frame-by-frame absolute intensity difference and normalize
+        frame_by_frame_abs_diff = np.abs(np.float32(fish.previous) - np.float32(crop)) / 2 # Adjust for increases and decreases across frames
+        frame_by_frame_abs_diff[frame_by_frame_abs_diff < fish.threshold_motion] = 0
+        if (total_abs_diff != 0) and len(frame_by_frame_abs_diff != 0):
+            motion = np.sum(np.abs(frame_by_frame_abs_diff))/total_abs_diff
+        else:
+            motion = 0.0
+        # ---------------------------------------------------------------------------------
+        # Decide whether to update the background
+        if fish.frames_since_background_update < max_background_rate:
+            fish.frames_since_background_update += 1
+        else:
+            if motion > 0.1:
+                fish.update_background(crop)
+
+        # Update "previous" crop
+        fish.previous = np.copy(crop)
+
+        # Extract fish pixel values (difference from background)
+        r = pixelpoints[:,0]
+        c = pixelpoints[:,1]
+        values = abs_diff[r,c].astype(float)
+
+        # Compute centroid
+        r = r.astype(float)
+        c = c.astype(float)
+        acc = np.sum(values)
+        cx = np.float32(np.sum(c*values))/acc
+        cy = np.float32(np.sum(r*values))/acc
+
+        # Compute orientation
+        line = cv2.fitLine(pixelpoints, distType=cv2.DIST_L2, param=0, reps=0.01, aeps=0.01)
+        vx = line[1][0]
+        vy = line[0][0]
+
+        # Score points
+        dx = c - cx
+        dy = r - cy
+        d = np.vstack((dx, dy))
+        d_norm = d/np.sqrt(np.sum(d*d, axis=0)).T
+        dirs = np.dot(np.array([vx, vy]), d_norm) * values
+        acc_dir = np.sum(dirs)
+
+        # Determine heading (0 deg to right, 90 deg up)
+        if acc_dir > 0:
+            heading = math.atan2((-vy), (vx)) * (360.0/(2*np.pi))
+        else:
+            heading = math.atan2((vy), (-vx)) * (360.0/(2*np.pi))
+
+        # Store
+        fish.add_behaviour(fish.ul[0] + cx, fish.ul[1] + cy, heading, area, motion)
+
+        # Return feedback
+        return threshold
 # FIN

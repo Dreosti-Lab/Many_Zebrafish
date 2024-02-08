@@ -76,6 +76,24 @@ for path in path_list:
     # Set backgrounds
     plate = MZF.set_backgrounds(background, plate)
 
+    # Load Video
+    vid = cv2.VideoCapture(video_path)
+    frame_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    # Load first frame
+    ret, im = vid.read()
+    previous = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+
+    # Set previous crops for each fish
+    for fish in plate:
+        # Crop ROI
+        crop = MZV.get_ROI_crop(previous, (fish.ul, fish.lr))
+        fish.previous = np.copy(crop)
+
+    # Reset video
+    vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
     # Load fish behaviour
     plate_behaviour = np.zeros((num_frames, 5, 96), dtype=np.float32)
     fish_folder = output_folder + '/fish'
@@ -91,7 +109,8 @@ for path in path_list:
     for f in range(0, num_frames, step_frames):
         vid.set(cv2.CAP_PROP_POS_FRAMES, f)
         ret, im = vid.read()
-        current = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        frame = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+
         fig = plt.figure(figsize=(20, 8))
         # Show tracking performance
         plt.subplot(1,2,1)
@@ -110,14 +129,12 @@ for path in path_list:
                 plt.plot([x + dx*-10, x + dx*10],[y + dy*-10, y + dy*10],'y', alpha=0.2, linewidth=1)
             else:
                 plt.plot(x+fish.width/2,y+fish.height/2,'r+', alpha=0.25)
-        # Show background subtraction-threshold
+        # Show algorithm feedback
         plt.subplot(1,2,2)
-        display = np.copy(current)
+        display = np.copy(frame)
         for i, fish in enumerate(plate):
-            crop = MZV.get_ROI_crop(current, (fish.ul, fish.lr))
-            abs_diff = cv2.absdiff(fish.background, crop)
-            level, threshold = cv2.threshold(abs_diff,fish.threshold_background,255,cv2.THRESH_BINARY)
-            display = MZV.set_ROI_crop(display, (fish.ul, fish.lr), threshold)
+            feedback = MZV.track_fish(frame, fish)
+            display = MZV.set_ROI_crop(display, (fish.ul, fish.lr), feedback)
         plt.imshow(display)
         validation_figure_path = validation_folder + f'/{f:010d}_frame.png'
         plt.tight_layout()
