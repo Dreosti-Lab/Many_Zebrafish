@@ -17,11 +17,14 @@ class Fish:
         self.height = None
         self.x = []
         self.y = []
+        self.heading = []
         self.area = []
         self.motion = []
         self.threshold_background = None
         self.threshold_motion = None
         self.background = None
+        self.previous = None
+        return
 
     def set_roi(self, _ul, _lr):
         self.ul = (int(round(_ul[0])), int(round(_ul[1])))   # ROI upper right corner
@@ -39,6 +42,15 @@ class Fish:
         self.background = image[r1:r2, c1:c2]
         self.threshold_background = np.median(self.background[:])/15
         self.threshold_motion = np.median(self.background[:])/30
+        return
+
+    def add_behaviour(self, x, y, heading, area, motion):
+        self.x.append(x)
+        self.y.append(y)
+        self.heading.append(heading)
+        self.area.append(area)
+        self.motion.append(motion)
+        return
 
 # Utilities for working with Fish Class
 
@@ -55,5 +67,27 @@ def set_backgrounds(background, plate):
     for fish in plate:
         fish.set_background(background)
     return plate
+
+# Save plate (fish behaviour and intensity roi)
+def save_plate(plate, intensity, output_folder):
+    num_frames = len(intensity)
+
+    # Save fish behaviour
+    for i, fish in enumerate(plate):
+        fish_path = output_folder + f'/fish/{(i+1):02d}_fish.csv'
+        fish_behaviour = np.zeros((num_frames,5), dtype=np.float32)
+        fish_behaviour[:,0] = np.array(fish.x)
+        fish_behaviour[:,1] = np.array(fish.y)
+        fish_behaviour[:,2] = np.array(fish.area)
+        fish_behaviour[:,3] = np.array(fish.heading)
+        fish_behaviour[:,4] = np.array(fish.motion)
+        np.savetxt(fish_path, fish_behaviour, fmt='%.3f', delimiter=',')
+
+    # Save intensity
+    intensity_path = output_folder + '/intensity.csv'
+    intensity_array = np.array(intensity)
+    np.savetxt(intensity_path, intensity_array, fmt='%d')
+
+    return
 
 # FIN

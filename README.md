@@ -4,6 +4,8 @@ A set of Python analysis scripts for analysing behaviour of zebrafish in 96-well
 ## Prerequsities
 - Python3
 - Numpy
+- Pandas
+- pyarrow
 - Matplotlib
 - OpenCV (opencv-python)
 - Scikit-Image

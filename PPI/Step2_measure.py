@@ -63,23 +63,9 @@ for path in path_list:
 
     # Process behaviour
     led_roi = ((0,0), (48,48))
-    plate, led_intensity = MZV.process_video_roi_analysis(video_path, plate, led_roi, -1, output_folder)
+    plate, led_intensity = MZV.fish_tracking_roi(video_path, plate, led_roi, 10000, output_folder)
 
-    # Save fish behaviour
-    fish_folder = output_folder + '/fish'
-    if not os.path.exists(fish_folder):
-        os.makedirs(fish_folder)
-    for i, fish in enumerate(plate):
-        fish_path = output_folder + f'/fish/{(i+1):02d}_fish.csv'
-        fish_behaviour = np.zeros((len(fish.motion),4),dtype=np.float32)
-        fish_behaviour[:,0] = np.array(fish.motion)
-        fish_behaviour[:,1] = np.array(fish.x)
-        fish_behaviour[:,2] = np.array(fish.y)
-        fish_behaviour[:,3] = np.array(fish.area)
-        np.savetxt(fish_path, fish_behaviour, delimiter=',')
-
-    # Save led intensity
-    led_intensity_array = np.array(led_intensity)
-    np.savetxt(led_path, led_intensity_array, fmt='%d')
+    # Save plate
+    MZF.save_plate(plate, led_intensity, output_folder)
 
 #FIN
