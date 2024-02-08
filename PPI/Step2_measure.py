@@ -63,7 +63,7 @@ for path in path_list:
 
     # Process behaviour
     led_roi = ((0,0), (48,48))
-    plate, led_intensity = MZV.fish_tracking_roi(video_path, plate, led_roi, 10000, output_folder)
+    plate, led_intensity = MZV.fish_tracking_roi(video_path, plate, led_roi, -1, 400, output_folder)
 
     # Save plate
     MZF.save_plate(plate, led_intensity, output_folder)

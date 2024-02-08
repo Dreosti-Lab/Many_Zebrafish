@@ -44,7 +44,10 @@ for path in path_list:
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    # Process
-    MZV.process_video_summary_images(video_path, 300, 1000, output_folder)
+    # Generate initial background
+    MZV.generate_initial_background(video_path, 50, 100, output_folder)   # 50 frames (4 sec intervals)
+
+    # Generate difference image
+    MZV.generate_difference_image(video_path, 300, 1000, output_folder)   # 300 frames (40 sec intervals)
 
 #FIN

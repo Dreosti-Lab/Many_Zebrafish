@@ -86,13 +86,15 @@ for path in path_list:
         print(i)
 
     # Validate
-    num_validation_frames = 1000
+    num_validation_frames = 100
     step_frames = num_frames // num_validation_frames
     for f in range(0, num_frames, step_frames):
         vid.set(cv2.CAP_PROP_POS_FRAMES, f)
         ret, im = vid.read()
         current = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-        fig = plt.figure(figsize=(10, 8))
+        fig = plt.figure(figsize=(20, 8))
+        # Show tracking performance
+        plt.subplot(1,2,1)
         plt.imshow(im)
         for i, fish in enumerate(plate):
             x = plate_behaviour[f,0,i]
@@ -108,13 +110,22 @@ for path in path_list:
                 plt.plot([x + dx*-10, x + dx*10],[y + dy*-10, y + dy*10],'y', alpha=0.2, linewidth=1)
             else:
                 plt.plot(x+fish.width/2,y+fish.height/2,'r+', alpha=0.25)
+        # Show background subtraction-threshold
+        plt.subplot(1,2,2)
+        display = np.copy(current)
+        for i, fish in enumerate(plate):
+            crop = MZV.get_ROI_crop(current, (fish.ul, fish.lr))
+            abs_diff = cv2.absdiff(fish.background, crop)
+            level, threshold = cv2.threshold(abs_diff,fish.threshold_background,255,cv2.THRESH_BINARY)
+            display = MZV.set_ROI_crop(display, (fish.ul, fish.lr), threshold)
+        plt.imshow(display)
         validation_figure_path = validation_folder + f'/{f:010d}_frame.png'
         plt.tight_layout()
         plt.savefig(validation_figure_path, dpi=180)
         plt.cla()
         plt.close()
         print(num_frames - f)
-
+        
     # Cleanup
     vid.release()
 

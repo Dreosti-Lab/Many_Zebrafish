@@ -18,29 +18,71 @@ from MZ_fish import Fish
 
 # Utilities for processing videos of 96-well plate experiments
 
-# Generate Video Summary Images
-def generate_video_summary_images(video_path, stack_size, step_frames, output_folder):
+# Generate initial background
+def generate_initial_background(video_path, stack_size, step_frames, output_folder):
     
-    # Load Video
+    # Load video
     vid = cv2.VideoCapture(video_path)
     num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-    
-    # Read First Frame
-    ret, im = vid.read()
-    previous = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    width = np.size(previous, 1)
-    height = np.size(previous, 0)
-    
-    # Alloctae Image Space
+    frame_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+    # Allocate stack space
     if step_frames <= 0:
         step_frames = num_frames // stack_size
     threshold_value = 10
-    accumulated_diff = np.zeros((height, width), dtype = float)
-    background_stack = np.zeros((height, width, stack_size), dtype = float)
-    background = np.zeros((height, width), dtype = float)
+    background_stack = np.zeros((frame_height, frame_width, stack_size), dtype = np.uint8)
+    background = np.zeros((frame_height, frame_width), dtype = float)
     stack_count = 0
     for i, f in enumerate(range(0, stack_size * step_frames, step_frames)):
+        vid.set(cv2.CAP_PROP_POS_FRAMES, f)
+        ret, im = vid.read()
+        current = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
         
+        # Add to background stack
+        if(stack_count < stack_size):
+            background_stack[:,:,stack_count] = current
+            stack_count = stack_count + 1
+        
+        # Report
+        print(f'{f}({stack_count})')
+
+    vid.release()
+
+    # Compute Background Frame (median or mode)
+    background = np.uint8(np.median(background_stack, axis = 2))
+
+    # Store
+    cv2.imwrite(output_folder + r'/background.png', background)
+
+    # Cleanup
+    vid.release()
+
+    return
+
+# Generate difference image
+def generate_difference_image(video_path, stack_size, step_frames, output_folder):
+    
+    # Load video
+    vid = cv2.VideoCapture(video_path)
+    num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    frame_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
+    # Read first frame
+    ret, im = vid.read()
+    previous = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    
+    # Allocate accumulator space
+    accumulated_diff = np.zeros((frame_height, frame_width), dtype = float)
+
+    # Set step size
+    if step_frames <= 0:
+        step_frames = num_frames // stack_size
+
+    # Accumulate frame-by-frame difference values (above threshold)
+    threshold_value = 10
+    for i, f in enumerate(range(0, stack_size * step_frames, step_frames)):
         vid.set(cv2.CAP_PROP_POS_FRAMES, f)
         ret, im = vid.read()
         current = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
@@ -50,15 +92,9 @@ def generate_video_summary_images(video_path, stack_size, step_frames, output_fo
        
         # Accumulate differences
         accumulated_diff = accumulated_diff + threshold
-        
-        # Add to background stack
-        if(stack_count < stack_size):
-            #cv2.imwrite(output_folder + f'/current_{stack_count}.png', current)
-            background_stack[:,:,stack_count] = current
-            stack_count = stack_count + 1
-        
+                
         # Report
-        print(f'{f}({stack_count})')
+        print(f'{f} of {num_frames}')
 
     vid.release()
 
@@ -69,12 +105,8 @@ def generate_video_summary_images(video_path, stack_size, step_frames, output_fo
     # Enhance Contrast (Histogram Equalize)
     equ = cv2.equalizeHist(accumulated_diff)
 
-    # Compute Background Frame (median or mode)
-    background = np.median(background_stack, axis = 2)
-
     # Store
     cv2.imwrite(output_folder + r'/difference.png', equ)    
-    cv2.imwrite(output_folder + r'/background.png', background)
 
     # Cleanup
     vid.release()
@@ -82,7 +114,7 @@ def generate_video_summary_images(video_path, stack_size, step_frames, output_fo
     return
 
 # Track fish within ROIs
-def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, output_folder):
+def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_background_rate, output_folder):
 
     # Load Video
     vid = cv2.VideoCapture(video_path)
@@ -166,9 +198,19 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, output_folde
                 # Measure frame-by-frame absolute intensity difference and normalize
                 frame_by_frame_abs_diff = np.abs(np.float32(fish.previous) - np.float32(crop)) / 2 # Adjust for increases and decreases across frames
                 frame_by_frame_abs_diff[frame_by_frame_abs_diff < fish.threshold_motion] = 0
-                motion = np.sum(np.abs(frame_by_frame_abs_diff))/total_abs_diff
+                if (total_abs_diff != 0) and len(frame_by_frame_abs_diff != 0):
+                    motion = np.sum(np.abs(frame_by_frame_abs_diff))/total_abs_diff
+                else:
+                    motion = 0.0
             else:
-                motion = 0
+                motion = 0.0
+            # ---------------------------------------------------------------------------------
+            # Decide whether to update the background
+            if fish.frames_since_background_update < max_background_rate:
+                fish.frames_since_background_update += 1
+            else:
+                if motion > 0.1:
+                    fish.update_background(crop)
 
             # Update "previous" crop
             fish.previous = np.copy(crop)
@@ -218,6 +260,9 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, output_folde
             end_time = time.time()
             print(f'{num_frames-f}: Elapsed {end_time - start_time:.3f} s')
             start_time = time.time()
+            cv2.imwrite(output_folder + f'/debug/{f:08d}_background.png', fish.background)
+            crop = get_ROI_crop(current, (plate[95].ul, plate[95].lr))
+            cv2.imwrite(output_folder + f'/debug/{f:08d}_crop.png', crop)
 
     # Cleanup
     vid.release()

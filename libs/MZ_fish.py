@@ -23,6 +23,10 @@ class Fish:
         self.threshold_background = None
         self.threshold_motion = None
         self.background = None
+        self.background_stack = None
+        self.stack_size = 20
+        self.stack_count = 0
+        self.frames_since_background_update = 0
         self.previous = None
         return
 
@@ -42,6 +46,18 @@ class Fish:
         self.background = image[r1:r2, c1:c2]
         self.threshold_background = np.median(self.background[:])/15
         self.threshold_motion = np.median(self.background[:])/30
+        self.background_stack = np.zeros((self.height, self.width, self.stack_size), dtype = np.uint8)
+        for i in range(self.stack_size):
+            self.background_stack[:,:,i] = self.background
+        self.stack_count = 0
+        return
+
+    def update_background(self, crop):
+        self.background_stack[:,:,self.stack_count] = crop
+        self.stack_count = (self.stack_count + 1) % self.stack_size
+        self.frames_since_background_update = 0
+        tmp = np.uint8(np.median(self.background_stack, axis = 2))
+        self.background = np.copy(tmp)
         return
 
     def add_behaviour(self, x, y, heading, area, motion):

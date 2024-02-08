@@ -19,6 +19,7 @@ sys.path.append(libs_path)
 # Import useful libraries
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import cv2
 
@@ -47,7 +48,7 @@ for path in path_list:
     figures_folder = os.path.dirname(video_path) + '/analysis/figures'
     fish_figures_folder = os.path.dirname(video_path) + '/analysis/figures/fish'
     roi_path = output_folder + '/roi.csv'
-    led_path = output_folder + '/led.csv'
+    led_path = output_folder + '/intensity.csv'
     background_path = output_folder + r'/background.png'
 
     # Create figures folder
@@ -90,21 +91,22 @@ for path in path_list:
     plt.close()
 
     # Load fish behaviour
-    plate_behaviour = np.zeros((num_frames, 4, 96), dtype=np.float32)
+    plate_behaviour = np.zeros((num_frames, 5, 96), dtype=np.float32)
     fish_folder = output_folder + '/fish'
     for i, fish in enumerate(plate):
         fish_path = fish_folder + f'/{(i+1):02d}_fish.csv'
-        fish_behaviour = np.genfromtxt(fish_path, delimiter=',')
+        fish_behaviour = pd.read_csv(fish_path, delimiter=",", header=None).values
         plate_behaviour[:,:,i] = fish_behaviour
         print(i)
 
     # Analyse
     for i, fish in enumerate(plate):
         figure_path = fish_figures_folder + f'/{(i+1):02d}_fish.png'
-        motion = plate_behaviour[:,0,i]
-        x = plate_behaviour[:,1,i]
-        y = plate_behaviour[:,2,i]
-        area = plate_behaviour[:,3,i]
+        x = plate_behaviour[:,0,i]
+        y = plate_behaviour[:,1,i]
+        area = plate_behaviour[:,2,i]
+        heading = plate_behaviour[:,3,i]
+        motion = plate_behaviour[:,4,i]
 
         fig = plt.figure(figsize=(10, 8))
         plt.subplot(2,3,1)
@@ -118,6 +120,9 @@ for path in path_list:
         plt.subplot(2,3,3)
         plt.title('Area')
         plt.plot(area, 'm.', markersize=2, alpha=0.25)
+        plt.subplot(2,3,6)
+        plt.title('Heading')
+        plt.plot(heading, 'g.', markersize=2, alpha=0.25)
 
         # PPI responses
         pre_frames = 50
