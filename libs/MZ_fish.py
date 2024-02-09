@@ -28,6 +28,7 @@ class Fish:
         self.stack_count = 0
         self.frames_since_background_update = 0
         self.previous = None
+        self.previous_motion = 0
         return
 
     def set_roi(self, _ul, _lr):
@@ -45,7 +46,7 @@ class Fish:
         c2 = self.lr[0]
         self.background = image[r1:r2, c1:c2]
         self.threshold_background = np.median(self.background[:])/15
-        self.threshold_motion = np.median(self.background[:])/30
+        self.threshold_motion = np.median(self.background[:])/20
         self.background_stack = np.zeros((self.height, self.width, self.stack_size), dtype = np.uint8)
         for i in range(self.stack_size):
             self.background_stack[:,:,i] = self.background

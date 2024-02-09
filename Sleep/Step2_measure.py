@@ -62,7 +62,7 @@ for path in path_list:
 
     # Process behaviour
     intensity_roi = ((50,250), (80,850))
-    plate, intensity = MZV.fish_tracking_roi(video_path, plate, intensity_roi, 500000, 100, output_folder)
+    plate, intensity = MZV.fish_tracking_roi(video_path, plate, intensity_roi, 1000000, 100, True, output_folder)
 
     # Save plate
     MZF.save_plate(plate, intensity, output_folder)

@@ -114,9 +114,15 @@ def generate_difference_image(video_path, stack_size, step_frames, output_folder
     return
 
 # Track fish within ROIs
-def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_background_rate, output_folder):
+def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_background_rate, validate, output_folder):
 
-    # Load Video
+    # If validationg, then create validation folder
+    if(validate):
+        validation_folder = output_folder + '/validation'
+        if not os.path.exists(validation_folder):
+            os.makedirs(validation_folder)
+    
+    # Load video
     vid = cv2.VideoCapture(video_path)
     if num_frames < 0:
         num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -125,12 +131,12 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_backgrou
 
     # Load first frame
     ret, im = vid.read()
-    previous = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    frame = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
-    # Set previous crops for each fish
+    # Set "previous" crops for each fish
     for fish in plate:
         # Crop ROI
-        crop = get_ROI_crop(previous, (fish.ul, fish.lr))
+        crop = get_ROI_crop(frame, (fish.ul, fish.lr))
         fish.previous = np.copy(crop)
 
     # Reset video
@@ -138,17 +144,26 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_backgrou
     
     # Video Loop
     region_intensity = []
-    report_interval = 100
+    report_interval = 1000
     start_time = time.time()
     for f in range(0, num_frames):
+
+        # Is this a report/validate/flush frame?
+        report = ((f % report_interval) == 0) and (f != 0)
 
         # Read next frame and convert to grayscale
         ret, im = vid.read()
         frame = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        # -RV-
+        if report and validate:
+            display = np.copy(frame)
 
         # Track each fish ROI
         for fish in plate:
-            ret = track_fish(frame, fish)
+            feedback = track_fish(frame, max_background_rate, fish)
+            # -RV-
+            if report and validate:
+                display = set_ROI_crop(display, (fish.ul, fish.lr), feedback)
         
         # Process LED
         crop = get_ROI_crop(frame, intensity_roi)
@@ -156,8 +171,35 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_backgrou
         intensity = np.sum(threshed)
         region_intensity.append(intensity)
 
+        # Validate?
+        if report and validate:
+            fig = plt.figure(figsize=(20, 8))
+            # Show tracking performance
+            plt.subplot(1,2,1)
+            plt.imshow(im)
+            for i, fish in enumerate(plate):
+                x = fish.x[-1]
+                y = fish.y[-1]
+                area = fish.area[-1]
+                heading = fish.heading[-1]
+                dx = math.cos((heading / 360.0) * (2 * math.pi))
+                dy = -1*math.sin((heading / 360.0) * (2 * math.pi))
+                if area > 0:
+                    plt.plot(x,y,'go', alpha=0.25)
+                    plt.plot(x + dx*10,y + dy*10,'bo', alpha=0.5, markersize=1)
+                    plt.plot([x + dx*-10, x + dx*10],[y + dy*-10, y + dy*10],'y', alpha=0.2, linewidth=1)
+                else:
+                    plt.plot(x+fish.width/2,y+fish.height/2,'r+', alpha=0.25)
+            # Show algorithm feedback
+            plt.subplot(1,2,2)
+            plt.imshow(display)
+            validation_figure_path = validation_folder + f'/{f:010d}_frame.png'
+            plt.tight_layout()
+            plt.savefig(validation_figure_path, dpi=180)
+            plt.close(fig)
+
         # Report
-        if ((f % report_interval) == 0) and (f != 0):
+        if report:
             end_time = time.time()
             print(f'{num_frames-f}: Elapsed {end_time - start_time:.3f} s')
             start_time = time.time()
@@ -210,15 +252,15 @@ def get_largest_contour(contours):
         return cnt, max_area
 
 # Fish tracking algorithm
-def track_fish(frame, fish):
+def track_fish(frame, max_background_rate, fish):
         # Crop ROI
         crop = get_ROI_crop(frame, (fish.ul, fish.lr))
 
-        # Absolute difference from background
-        abs_diff = cv2.absdiff(fish.background, crop)
+        # Difference from background (fish always darker)
+        subtraction = cv2.subtract(fish.background, crop)
 
         # Threshold
-        level, threshold = cv2.threshold(abs_diff,fish.threshold_background,255,cv2.THRESH_BINARY)
+        level, threshold = cv2.threshold(subtraction,fish.threshold_background,255,cv2.THRESH_BINARY)
 
         # Morphological close
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
@@ -230,7 +272,7 @@ def track_fish(frame, fish):
         # If no contours, continue
         if len(contours) == 0:
             fish.add_behaviour(fish.ul[0], fish.ul[1], 0.0, -1.0, 0.0)
-            return
+            return threshold
 
         # Get largest contour
         largest_cnt, area = get_largest_contour(contours)
@@ -238,48 +280,40 @@ def track_fish(frame, fish):
         # If no area, continue
         if area == 0.0:
             fish.add_behaviour(fish.ul[0], fish.ul[1], 0.0, -1.0, 0.0)
-            return
+            return threshold
         
         # Create Binary Mask Image
         mask = np.zeros(crop.shape,np.uint8)
 
         # Draw largest contour into Mask Image (1 for Fish, 0 for Background)
-        cv2.drawContours(mask,[largest_cnt],0,1,-1) # -1 draw the contour filled
+        mask = cv2.drawContours(mask,[largest_cnt],0,1,-1) # -1 draw the contour filled
 
         # Extract pixel points
         pixelpoints = np.transpose(np.nonzero(mask))
 
-            # Get Area (again)
+        # Get Area (again)
         area = np.size(pixelpoints, 0)
 
-        # ---------------------------------------------------------------------------------
-        # Compute Frame-by-Frame Motion (absolute changes above threshold)
-        # - Normalize by total abs(differece) from background
-        abs_diff[abs_diff < fish.threshold_motion] = 0
-        total_abs_diff = np.sum(np.abs(abs_diff))
-        
-        # Measure frame-by-frame absolute intensity difference and normalize
-        frame_by_frame_abs_diff = np.abs(np.float32(fish.previous) - np.float32(crop)) / 2 # Adjust for increases and decreases across frames
-        frame_by_frame_abs_diff[frame_by_frame_abs_diff < fish.threshold_motion] = 0
-        if (total_abs_diff != 0) and len(frame_by_frame_abs_diff != 0):
-            motion = np.sum(np.abs(frame_by_frame_abs_diff))/total_abs_diff
-        else:
-            motion = 0.0
-        # ---------------------------------------------------------------------------------
+        # Compute Frame-by-Frame Motion (absolute intensity changes above "motion" threshold)
+        motion_abs_diff = cv2.absdiff(fish.previous, crop)
+        level, motion_threshold = cv2.threshold(motion_abs_diff, fish.threshold_motion, 255, cv2.THRESH_TOZERO)
+        motion = np.sum(motion_threshold[:])
+
         # Decide whether to update the background
         if fish.frames_since_background_update < max_background_rate:
             fish.frames_since_background_update += 1
         else:
-            if motion > 0.1:
+            if (motion > 500) and (fish.previous_motion > 500):
                 fish.update_background(crop)
 
         # Update "previous" crop
         fish.previous = np.copy(crop)
+        fish.previous_motion = motion
 
         # Extract fish pixel values (difference from background)
         r = pixelpoints[:,0]
         c = pixelpoints[:,1]
-        values = abs_diff[r,c].astype(float)
+        values = subtraction[r,c].astype(float)
 
         # Compute centroid
         r = r.astype(float)
@@ -297,8 +331,11 @@ def track_fish(frame, fish):
         dx = c - cx
         dy = r - cy
         d = np.vstack((dx, dy))
-        d_norm = d/np.sqrt(np.sum(d*d, axis=0)).T
-        dirs = np.dot(np.array([vx, vy]), d_norm) * values
+        nonzero_pts = np.sum(d, axis = 0) != 0.0
+        d = d[:, nonzero_pts]
+        mag = np.sqrt(np.sum(d*d, axis=0)).T
+        d_norm = d/mag
+        dirs = np.dot(np.array([vx, vy]), d_norm) * values[nonzero_pts]
         acc_dir = np.sum(dirs)
 
         # Determine heading (0 deg to right, 90 deg up)
