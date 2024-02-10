@@ -2,7 +2,7 @@
 """
 Measure behaviour in a 96-well Sleep experiment
 
-@author: kamnpff (Adam Kampff)
+@author: kampff
 """
 
 # Load Environment file and variables

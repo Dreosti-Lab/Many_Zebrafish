@@ -2,7 +2,7 @@
 """
 Many_Zebrafish: Utility Library
 
-@author: kamnpff (Adam Kampff)
+@author: kampff
 """
 # Import useful libraries
 import os

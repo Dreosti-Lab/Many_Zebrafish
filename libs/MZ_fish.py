@@ -2,7 +2,7 @@
 """
 Many_Zebrafish: Fish Class
 
-@author: kamnpff (Adam Kampff)
+@author: kampff
 """
 # Import useful libraries
 import numpy as np

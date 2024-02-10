@@ -2,7 +2,7 @@
 """
 Many_Zebrafish: ROI Library
 
-@author: kamnpff (Adam Kampff)
+@author: kampff
 """
 # Import useful libraries
 import os
