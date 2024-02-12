@@ -4,36 +4,35 @@ Measure behaviour in a 96-well Sleep experiment
 
 @author: kampff
 """
-
-# Load Environment file and variables
+#----------------------------------------------------------
+# Load environment file and variables
 import os
 from dotenv import load_dotenv
 load_dotenv()
 libs_path = os.getenv('LIBS_PATH')
 base_path = os.getenv('BASE_PATH')
 
-# Set Library Paths
+# Set library paths
 import sys
 sys.path.append(libs_path)
 
-# Import useful libraries
+# Import libraries
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 
-# Import local modules
-import MZ_fish as MZF
+# Import modules
+import MZ_plate as MZP
 import MZ_video as MZV
-import MZ_roi as MZR
 import MZ_utilities as MZU
 
 # Reload modules
 import importlib
-importlib.reload(MZF)
+importlib.reload(MZP)
 importlib.reload(MZV)
-importlib.reload(MZR)
 importlib.reload(MZU)
+#----------------------------------------------------------
 
 # Load list of video paths
 path_list_path = base_path + "/Sleep_Behaviour/path_list.txt"
@@ -44,27 +43,48 @@ for path in path_list:
     # Create Paths
     video_path = base_path + path
     output_folder = os.path.dirname(video_path) + '/analysis'
+    validation_folder = output_folder + '/validation'
     roi_path = output_folder + '/roi.csv'
     background_path = output_folder + '/background.png'
 
     # Create plate structure
-    plate = MZF.create_plate()
+    name = path.split('/')[-1][:-4]
+    plate = MZP.Plate(name)
 
     # Load ROIs
-    plate = MZR.load_rois(roi_path, plate)
+    plate.load_rois(roi_path)
 
     # Load -Initial- Background Frame
     background = cv2.imread(background_path)
     background = cv2.cvtColor(background, cv2.COLOR_BGR2GRAY)
 
-    # Set backgrounds
-    plate = MZF.set_backgrounds(background, plate)
+    # Initialize backgrounds
+    plate.init_backgrounds(background)
 
-    # Process behaviour
+    # Load video
+    vid = cv2.VideoCapture(video_path)
+    num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    vid.release()
+
+    # Debug
+    num_frames = 13472
+
+    # Determine processing chunks
+    chunk_size = 1000
+    start_frames= []
+    end_frames= []
+    for c in range(0, num_frames, chunk_size):
+        start_frames.append(c)
+        if (c + chunk_size) > num_frames:
+            end_frames.append(num_frames)
+        else:
+            end_frames.append(c + chunk_size)
+    
+    # Process behaviour in chunks
     intensity_roi = ((50,250), (80,850))
-    plate, intensity = MZV.fish_tracking_roi(video_path, plate, intensity_roi, 1000000, 100, True, output_folder)
-
-    # Save plate
-    MZF.save_plate(plate, intensity, output_folder)
-
+    for start, end in zip(start_frames, end_frames):
+        plate = MZV.fish_tracking_roi(video_path, plate, intensity_roi, start_frame=start, end_frame=end, max_background_rate=100, validate=True, validation_folder=validation_folder)
+        plate.save(output_folder, start_frame=start, end_frame=end)
+        plate.clear()
+        
 #FIN

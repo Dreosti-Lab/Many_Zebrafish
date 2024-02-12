@@ -1,56 +1,53 @@
 # -*- coding: utf-8 -*-
 """
-Measure behaviour in a 96-well Sleep experiment
+Analyse behaviour in a 96-well Sleep experiment
 
 @author: kampff
 """
-
-# Load Environment file and variables
+#----------------------------------------------------------
+# Load environment file and variables
 import os
 from dotenv import load_dotenv
 load_dotenv()
 libs_path = os.getenv('LIBS_PATH')
 base_path = os.getenv('BASE_PATH')
 
-# Set Library Paths
+# Set library paths
 import sys
 sys.path.append(libs_path)
 
-# Import useful libraries
+# Import libraries
 import os
+import glob
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import cv2
 
-# Import local modules
-import MZ_fish as MZF
+# Import modules
+import MZ_plate as MZP
 import MZ_video as MZV
-import MZ_roi as MZR
 import MZ_utilities as MZU
 
 # Reload modules
 import importlib
-importlib.reload(MZF)
+importlib.reload(MZP)
 importlib.reload(MZV)
-importlib.reload(MZR)
 importlib.reload(MZU)
+
+#----------------------------------------------------------
 
 # Load list of video paths
 path_list_path = base_path + "/Sleep_Behaviour/path_list.txt"
 path_list = MZU.load_path_list(path_list_path)
 
-# Anayze behaviour for video paths (*.avi) in path_list
+# Analyse behaviour for video paths (*.avi) in path_list
 for path in path_list:
     # Create Paths
     video_path = base_path + path
     output_folder = os.path.dirname(video_path) + '/analysis'
+    plate_folder = output_folder + '/plate'
     figures_folder = os.path.dirname(video_path) + '/analysis/figures'
     fish_figures_folder = os.path.dirname(video_path) + '/analysis/figures/fish'
-    roi_path = output_folder + '/roi.csv'
-    intensity_path = output_folder + '/intensity.csv'
-    background_path = output_folder + r'/background.png'
-
+    
     # Create figures folder
     if not os.path.exists(figures_folder):
         os.makedirs(figures_folder)   
@@ -60,14 +57,32 @@ for path in path_list:
         os.makedirs(fish_figures_folder)   
 
     # Create plate structure
-    plate = MZF.create_plate()
+    name = path.split('/')[-1][:-4]
+    plate = MZP.Plate(name)
 
-    # Load ROIs
-    plate = MZR.load_rois(roi_path, plate)
+    # Load plate in chunks
+    plate_paths = sorted(glob.glob(plate_folder + '/*.npz'), key=os.path.getmtime)
+    count  = 0
+    intensity = np.empty(0, dtype=np.float32)
+    for plate_path in plate_paths:
+        frame_range = plate_path[:-4].split('_')[-2:]
+        start_frame = int(frame_range[0])
+        end_frame = int(frame_range[1])
+        print(f'Loading plate data chunk...{start_frame} to {end_frame}')
+        plate.load(output_folder, start_frame, end_frame)
+        if count >= 1:
+            print(np.sum(plate.wells[11].stack[2][:] - previous_debug))
+        previous_debug = plate.wells[11].stack[2][:]
+        count = count + 1
+        print(plate.intensity[-1])
+        intensity = np.hstack((intensity, plate.intensity))
+        plate.clear()
+
+    # ---- Need and append plate function ?? ----
 
     # Load intensity
-    intensity = np.genfromtxt(intensity_path, delimiter=',')
     num_frames = len(intensity)
+    print(num_frames)
 
     # Plot intensity
     fig = plt.figure(figsize=(10, 4))
@@ -77,23 +92,14 @@ for path in path_list:
     plt.cla()
     plt.close()
     
-    # Load fish behaviour
-    plate_behaviour = np.zeros((num_frames, 5, 96), dtype=np.float32)
-    fish_folder = output_folder + '/fish'
-    for i, fish in enumerate(plate):
-        fish_path = fish_folder + f'/{(i+1):02d}_fish.csv'
-        fish_behaviour = pd.read_csv(fish_path, delimiter=",", header=None).values
-        plate_behaviour[:,:,i] = fish_behaviour
-        print(i)
-
     # Analyse
-    for i, fish in enumerate(plate):
+    for i, fish in enumerate(plate.wells):
         figure_path = fish_figures_folder + f'/{(i+1):02d}_fish.png'
-        x = plate_behaviour[:,0,i]
-        y = plate_behaviour[:,1,i]
-        area = plate_behaviour[:,2,i]
-        heading = plate_behaviour[:,3,i]
-        motion = plate_behaviour[:,4,i]
+        x = fish.x
+        y = fish.y
+        area = fish.area
+        heading = fish.heading
+        motion = fish.motion
 
         fig = plt.figure(figsize=(10, 8))
         plt.subplot(2,2,1)

@@ -1,46 +1,43 @@
 # -*- coding: utf-8 -*-
 """
-Measure behaviour in a 96-well PPI experiment
+Analyse behaviour in a 96-well PPI experiment
 
 @author: kampff
 """
-
-# Load Environment file and variables
+#----------------------------------------------------------
+# Load environment file and variables
 import os
 from dotenv import load_dotenv
 load_dotenv()
 libs_path = os.getenv('LIBS_PATH')
 base_path = os.getenv('BASE_PATH')
 
-# Set Library Paths
+# Set library paths
 import sys
 sys.path.append(libs_path)
 
-# Import useful libraries
+# Import libraries
 import os
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import cv2
 
-# Import local modules
-import MZ_fish as MZF
+# Import modules
+import MZ_plate as MZP
 import MZ_video as MZV
-import MZ_roi as MZR
 import MZ_utilities as MZU
 
 # Reload modules
 import importlib
-importlib.reload(MZF)
+importlib.reload(MZP)
 importlib.reload(MZV)
-importlib.reload(MZR)
 importlib.reload(MZU)
+#----------------------------------------------------------
 
 # Load list of video paths
 path_list_path = base_path + "/PPI_Behaviour/path_list.txt"
 path_list = MZU.load_path_list(path_list_path)
 
-# Anayze behaviour for video paths (*.avi) in path_list
+# Analyse behaviour for video paths (*.avi) in path_list
 for path in path_list:
     # Create Paths
     video_path = base_path + path
@@ -59,20 +56,21 @@ for path in path_list:
     if not os.path.exists(fish_figures_folder):
         os.makedirs(fish_figures_folder)   
 
-    # Create plate structure
-    plate = MZF.create_plate()
+    # Create plate
+    name = path.split('/')[-1][:-4]
+    plate = MZP.Plate(name)
 
-    # Load ROIs
-    plate = MZR.load_rois(roi_path, plate)
-
-    # Load LED intensity
-    led_intensity = np.genfromtxt(led_path, delimiter=',')
-    num_frames = len(led_intensity)
+    # Load plate
+    print("Loading plate data...")
+    plate.load(output_folder)
 
     # Extract stimulus times and types
+    led_intensity = plate.intensity
+    print("Extracting pulses...")
     single_pulses, paired_pulses = MZU.extract_ppi_stimuli(led_intensity)
 
     # Plot LED
+    print("Plotting LED...")
     fig = plt.figure(figsize=(10, 8))
     plt.title('LED-based Pulse Detection')
     for i,pulse in enumerate(single_pulses):
@@ -90,23 +88,14 @@ for path in path_list:
     plt.cla()
     plt.close()
 
-    # Load fish behaviour
-    plate_behaviour = np.zeros((num_frames, 5, 96), dtype=np.float32)
-    fish_folder = output_folder + '/fish'
-    for i, fish in enumerate(plate):
-        fish_path = fish_folder + f'/{(i+1):02d}_fish.csv'
-        fish_behaviour = pd.read_csv(fish_path, delimiter=",", header=None).values
-        plate_behaviour[:,:,i] = fish_behaviour
-        print(i)
-
     # Analyse
-    for i, fish in enumerate(plate):
+    for i, fish in enumerate(plate.wells):
         figure_path = fish_figures_folder + f'/{(i+1):02d}_fish.png'
-        x = plate_behaviour[:,0,i]
-        y = plate_behaviour[:,1,i]
-        area = plate_behaviour[:,2,i]
-        heading = plate_behaviour[:,3,i]
-        motion = plate_behaviour[:,4,i]
+        x = fish.x
+        y = fish.y
+        area = fish.area
+        heading = fish.heading
+        motion = fish.motion
 
         fig = plt.figure(figsize=(10, 8))
         plt.subplot(2,3,1)
@@ -150,7 +139,7 @@ for path in path_list:
 
         # Save
         plt.savefig(figure_path, dpi=180)
-        print(i)
+        print(f'Analysing Fish {i} of 96')
         plt.cla()
         plt.close()
 

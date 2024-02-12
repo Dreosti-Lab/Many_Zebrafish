@@ -4,7 +4,7 @@ Many_Zebrafish: Utility Library
 
 @author: kampff
 """
-# Import useful libraries
+# Import libraries
 import os
 import numpy as np
 import matplotlib.pyplot as plt

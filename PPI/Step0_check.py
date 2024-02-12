@@ -4,19 +4,19 @@ Quickly check the result of a 96-well PPI experiment
 
 @author: kampff
 """
-
-# Load Environment file and variables
+#----------------------------------------------------------
+# Load environment file and variables
 import os
 from dotenv import load_dotenv
 load_dotenv()
 libs_path = os.getenv('LIBS_PATH')
 base_path = os.getenv('BASE_PATH')
 
-# Set Library Paths
+# Set library paths
 import sys
 sys.path.append(libs_path)
 
-# Import useful libraries
+# Import libraries
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,6 +29,7 @@ import MZ_utilities as MZU
 import importlib
 importlib.reload(MZV)
 importlib.reload(MZU)
+#----------------------------------------------------------
 
 # Load list of video paths
 path_list_path = base_path + "/PPI_Behaviour/path_list.txt"

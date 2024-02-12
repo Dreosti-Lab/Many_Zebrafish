@@ -4,34 +4,33 @@ Automatically extract ROIs from a 96-well Sleep experiment
 
 @author: kampff
 """
-
-# Load Environment file and variables
+#----------------------------------------------------------
+# Load environment file and variables
 import os
 from dotenv import load_dotenv
 load_dotenv()
 libs_path = os.getenv('LIBS_PATH')
 base_path = os.getenv('BASE_PATH')
 
-# Set Library Paths
+# Set library paths
 import sys
 sys.path.append(libs_path)
 
-# Import useful libraries
+# Import libraries
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 
-# Import local modules
-import MZ_fish as MZF
-import MZ_roi as MZR
+# Import modules
+import MZ_plate as MZP
 import MZ_utilities as MZU
 
 # Reload modules
 import importlib
-importlib.reload(MZF)
-importlib.reload(MZR)
+importlib.reload(MZP)
 importlib.reload(MZU)
+#----------------------------------------------------------
 
 # Load list of video paths
 path_list_path = base_path + "/Sleep_Behaviour/path_list.txt"
@@ -43,6 +42,7 @@ for path in path_list:
     output_folder = os.path.dirname(base_path + path) + '/analysis'
     image_path = output_folder + '/difference.png'
     masked_path = output_folder + '/masked.png'
+    roi_path = output_folder + '/roi.csv'
 
     # Mask difference image
     image  = cv2.imread(image_path)
@@ -53,10 +53,14 @@ for path in path_list:
     masked = gray * mask
     ret = cv2.imwrite(masked_path, masked)    
     
-    # Create plate structure
-    plate = MZF.create_plate()
+    # Create plate
+    name = path.split('/')[-1][:-4]
+    plate = MZP.Plate(name)
 
     # Automatically detect ROIs
-    plate = MZR.find_rois(masked_path, plate, 15, output_folder)
+    plate.find_rois(masked_path, 15, output_folder)
+
+    # Store ROIs
+    plate.save_rois(roi_path)
 
 #FIN

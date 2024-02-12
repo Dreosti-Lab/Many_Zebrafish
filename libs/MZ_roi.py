@@ -74,11 +74,11 @@ def find_rois(image_path, plate, blur, output_folder):
             right = vert_dividers[col+1]
             ul = find_intersection(left, top)
             lr = find_intersection(right, bottom)
-            plate[count].set_roi(ul, lr)
+            plate.wells[count].set_roi(ul, lr)
             count = count + 1
 
     # Draw ROI intersections
-    for fish in plate:
+    for fish in plate.wells:
         display = cv2.circle(display, fish.ul, 3, (0,255,0), 1)
         display = cv2.circle(display, fish.lr, 3, (0,255,0), 1)
 
@@ -89,19 +89,9 @@ def find_rois(image_path, plate, blur, output_folder):
     # Store ROIs (positions)
     roi_path = output_folder + '/roi.csv'
     roi_file = open(roi_path, 'w')
-    for fish in plate:
+    for fish in plate.wells:
         ret = roi_file.write(f'{fish.ul[0]},{fish.ul[1]},{fish.lr[0]},{fish.lr[1]}\n')
 
-    return plate
-
-# Load ROIs
-def load_rois(roi_path, plate):
-    roi_data = np.genfromtxt(roi_path, delimiter=',')
-    for i in range(96):
-        roi_line = roi_data[i]
-        ul = (roi_line[0],roi_line[1])
-        lr = (roi_line[2],roi_line[3])
-        plate[i].set_roi(ul, lr)
     return plate
 
 # Find extremes

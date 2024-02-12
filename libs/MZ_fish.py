@@ -4,31 +4,30 @@ Many_Zebrafish: Fish Class
 
 @author: kampff
 """
-# Import useful libraries
+# Import libraries
 import numpy as np
 
 # Fish Class
 class Fish:
-    def __init__(self, _id):
-        self.id = _id
-        self.ul = None
-        self.lr = None
-        self.width = None
-        self.height = None
-        self.x = []
-        self.y = []
-        self.heading = []
-        self.area = []
-        self.motion = []
-        self.threshold_background = None
-        self.threshold_motion = None
-        self.background = None
-        self.background_stack = None
-        self.stack_size = 20
-        self.stack_count = 0
-        self.frames_since_background_update = 0
-        self.previous = None
-        self.previous_motion = 0
+    def __init__(self):
+        self.roi_ul = None                  # ROI: upper left coordinate (x,y)
+        self.roi_lr = None                  # ROI: lower right coordinate (x,y)
+        self.roi_width = None               # ROI: width (pixels)
+        self.roi_height = None              # ROI: height (pixels)
+        self.x = []                         # List of fish centroid X positions
+        self.y = []                         # List of fish centroid Y positions
+        self.heading = []                   # List of fish heading angles (0 right, 90 up)
+        self.area = []                      # List of fish particle areas
+        self.motion = []                    # List of fish "motion" values
+        self.threshold_background = None    # Threshload level for background segmentation
+        self.threshold_motion = None        # Threshold level for motion detection
+        self.background = None              # Background frame (roi_width xx roi_height)
+        self.stack = None                   # Frame history stack
+        self.stack_size = 20                # Sice of history stack
+        self.stack_count = 0                # Current position to update in history stack
+        self.since_stack_update = 0         # Frames since last history stack update
+        self.previous = None                # Previous frame (roi_width xx roi_height)
+        self.previous_motion = 0            # Previous "motion" value
         return
 
     def set_roi(self, _ul, _lr):
@@ -39,7 +38,7 @@ class Fish:
         self.background = np.zeros((self.width, self.height))
         return
 
-    def set_background(self, image):
+    def init_background(self, image):
         r1 = self.ul[1]
         r2 = self.lr[1]
         c1 = self.ul[0]
@@ -47,17 +46,17 @@ class Fish:
         self.background = image[r1:r2, c1:c2]
         self.threshold_background = np.median(self.background[:])/15
         self.threshold_motion = np.median(self.background[:])/20
-        self.background_stack = np.zeros((self.height, self.width, self.stack_size), dtype = np.uint8)
+        self.stack = np.zeros((self.height, self.width, self.stack_size), dtype = np.uint8)
         for i in range(self.stack_size):
-            self.background_stack[:,:,i] = self.background
+            self.stack[:,:,i] = self.background
         self.stack_count = 0
         return
 
     def update_background(self, crop):
-        self.background_stack[:,:,self.stack_count] = crop
+        self.stack[:,:,self.stack_count] = crop
         self.stack_count = (self.stack_count + 1) % self.stack_size
-        self.frames_since_background_update = 0
-        tmp = np.uint8(np.median(self.background_stack, axis = 2))
+        self.since_stack_update = 0
+        tmp = np.uint8(np.median(self.stack, axis = 2))
         self.background = np.copy(tmp)
         return
 
@@ -68,43 +67,5 @@ class Fish:
         self.area.append(area)
         self.motion.append(motion)
         return
-
-# Utilities for working with Fish Class
-
-# Create Plate
-def create_plate():
-    plate = []
-    for i in range(96):
-        fish = Fish(i+1)
-        plate.append(fish)
-    return plate        
-
-# Set backgrounds
-def set_backgrounds(background, plate):
-    for fish in plate:
-        fish.set_background(background)
-    return plate
-
-# Save plate (fish behaviour and intensity roi)
-def save_plate(plate, intensity, output_folder):
-    num_frames = len(intensity)
-
-    # Save fish behaviour
-    for i, fish in enumerate(plate):
-        fish_path = output_folder + f'/fish/{(i+1):02d}_fish.csv'
-        fish_behaviour = np.zeros((num_frames,5), dtype=np.float32)
-        fish_behaviour[:,0] = np.array(fish.x)
-        fish_behaviour[:,1] = np.array(fish.y)
-        fish_behaviour[:,2] = np.array(fish.area)
-        fish_behaviour[:,3] = np.array(fish.heading)
-        fish_behaviour[:,4] = np.array(fish.motion)
-        np.savetxt(fish_path, fish_behaviour, fmt='%.3f', delimiter=',')
-
-    # Save intensity
-    intensity_path = output_folder + '/intensity.csv'
-    intensity_array = np.array(intensity)
-    np.savetxt(intensity_path, intensity_array, fmt='%d')
-
-    return
 
 # FIN

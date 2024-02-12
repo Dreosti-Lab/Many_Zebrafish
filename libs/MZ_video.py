@@ -4,12 +4,11 @@ Many_Zebrafish: Video Library
 
 @author: kampff
 """
-# Import useful libraries
+# Import libraries
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-import glob
 import time
 import cv2
 
@@ -114,27 +113,29 @@ def generate_difference_image(video_path, stack_size, step_frames, output_folder
     return
 
 # Track fish within ROIs
-def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_background_rate, validate, output_folder):
-
-    # If validationg, then create validation folder
+def fish_tracking_roi(video_path, plate, intensity_roi, start_frame=0, end_frame=-1, max_background_rate=400, validate=False, validation_folder=None):
+    # If validating, then create validation folder
     if(validate):
-        validation_folder = output_folder + '/validation'
         if not os.path.exists(validation_folder):
             os.makedirs(validation_folder)
     
     # Load video
     vid = cv2.VideoCapture(video_path)
-    if num_frames < 0:
-        num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     frame_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    # Determine tracking range
+    if end_frame == -1:
+        end_frame = start_frame + num_frames - 1
+    num_frames = end_frame - start_frame + 1
 
     # Load first frame
     ret, im = vid.read()
     frame = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
     # Set "previous" crops for each fish
-    for fish in plate:
+    for fish in plate.wells:
         # Crop ROI
         crop = get_ROI_crop(frame, (fish.ul, fish.lr))
         fish.previous = np.copy(crop)
@@ -143,15 +144,15 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_backgrou
     vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
     
     # Video Loop
-    region_intensity = []
     report_interval = 1000
     start_time = time.time()
-    for f in range(0, num_frames):
+    for f in range(start_frame, end_frame, 1):
 
-        # Is this a report/validate/flush frame?
-        report = ((f % report_interval) == 0) and (f != 0)
+        # Is this a report/validate frame?
+        report = ((f % report_interval) == 0)
 
         # Read next frame and convert to grayscale
+        vid.set(cv2.CAP_PROP_POS_FRAMES, f)
         ret, im = vid.read()
         frame = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
         # -RV-
@@ -159,7 +160,7 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_backgrou
             display = np.copy(frame)
 
         # Track each fish ROI
-        for fish in plate:
+        for fish in plate.wells:
             feedback = track_fish(frame, max_background_rate, fish)
             # -RV-
             if report and validate:
@@ -167,17 +168,17 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_backgrou
         
         # Process LED
         crop = get_ROI_crop(frame, intensity_roi)
-        threshed = crop[crop > 10]
-        intensity = np.sum(threshed)
-        region_intensity.append(intensity)
+        intensity = np.mean(crop)
+        plate.intensity.append(intensity)
 
         # Validate?
         if report and validate:
             fig = plt.figure(figsize=(20, 8))
+            
             # Show tracking performance
             plt.subplot(1,2,1)
             plt.imshow(im)
-            for i, fish in enumerate(plate):
+            for i, fish in enumerate(plate.wells):
                 x = fish.x[-1]
                 y = fish.y[-1]
                 area = fish.area[-1]
@@ -190,6 +191,7 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_backgrou
                     plt.plot([x + dx*-10, x + dx*10],[y + dy*-10, y + dy*10],'y', alpha=0.2, linewidth=1)
                 else:
                     plt.plot(x+fish.width/2,y+fish.height/2,'r+', alpha=0.25)
+
             # Show algorithm feedback
             plt.subplot(1,2,2)
             plt.imshow(display)
@@ -201,19 +203,16 @@ def fish_tracking_roi(video_path, plate, intensity_roi, num_frames, max_backgrou
         # Report
         if report:
             end_time = time.time()
-            print(f'{num_frames-f}: Elapsed {end_time - start_time:.3f} s')
+            print(f'{f} ({end_frame}): Elapsed {end_time - start_time:.3f} s')
             start_time = time.time()
-            cv2.imwrite(output_folder + f'/debug/{f:08d}_background.png', fish.background)
-            crop = get_ROI_crop(frame, (plate[95].ul, plate[95].lr))
-            cv2.imwrite(output_folder + f'/debug/{f:08d}_crop.png', crop)
-
+    
     # Cleanup
     vid.release()
 
-    return plate, region_intensity
+    return plate
 
 
-# Return cropped image from ROI list
+# Return cropped image from ROI
 def get_ROI_crop(image, roi):
     r1 = roi[0][1]
     r2 = roi[1][1]
@@ -300,8 +299,8 @@ def track_fish(frame, max_background_rate, fish):
         motion = np.sum(motion_threshold[:])
 
         # Decide whether to update the background
-        if fish.frames_since_background_update < max_background_rate:
-            fish.frames_since_background_update += 1
+        if fish.since_stack_update < max_background_rate:
+            fish.since_stack_update += 1
         else:
             if (motion > 500) and (fish.previous_motion > 500):
                 fish.update_background(crop)

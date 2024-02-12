@@ -3,8 +3,6 @@ A set of Python analysis scripts for analysing behaviour of ***many*** zebrafish
 
 ## Python package requirements
 - numpy
-- pandas
-- pyarrow
 - matplotlib
 - opencv-python
 - scikit-image
