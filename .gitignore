@@ -22,4 +22,4 @@ x64
 _tmp/
 
 # Environment file
-.env
+.env*
