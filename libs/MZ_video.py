@@ -144,7 +144,7 @@ def fish_tracking_roi(video_path, plate, intensity_roi, start_frame=0, end_frame
     vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
     
     # Video Loop
-    report_interval = 1000
+    report_interval = 10000
     start_time = time.time()
     for f in range(start_frame, end_frame, 1):
 

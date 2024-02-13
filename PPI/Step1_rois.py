@@ -38,6 +38,8 @@ path_list = MZU.load_path_list(path_list_path)
 
 # Automatically detect ROIs for video paths (*.avi) in path_list
 for path in path_list:
+    print(path)
+
     # Create Paths
     output_folder = os.path.dirname(base_path + path) + '/analysis'
     image_path = output_folder + '/difference.png'
