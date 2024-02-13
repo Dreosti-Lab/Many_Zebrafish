@@ -33,12 +33,24 @@ importlib.reload(MZV)
 importlib.reload(MZU)
 #----------------------------------------------------------
 
-# Load list of video paths
-path_list_path = base_path + "/path_list.txt"
-path_list = MZU.load_path_list(path_list_path)
+# Specify summary path
+summary_path = "/home/kampff/data/Schizophrenia_data/Sumamry_Info.xlsx"
+
+# Specify experiment abbreviation
+experiment = 'Herc1'
+experiment = 'Akap11'
+plates, paths, controls, tests = MZU.parse_summary_PPI(summary_path, experiment)
+
+# Set list of video paths
+path_list = paths
+path = path_list[0]
 
 # Analyse behaviour for video paths (*.avi) in path_list
-for path in path_list:
+control_single_responses = np.empty((8,200,0))
+test_single_responses = np.empty((8,200,0))
+control_paired_responses = np.empty((8,200,0))
+test_paired_responses = np.empty((8,200,0))
+for p, path in enumerate(path_list):
     # Create Paths
     video_path = base_path + path
     output_folder = os.path.dirname(video_path) + '/analysis'
@@ -61,7 +73,7 @@ for path in path_list:
     plate = MZP.Plate(name)
 
     # Load plate
-    print("Loading plate data...")
+    print(f"Loading plate data...{p} of {len(path_list)}")
     plate.load(output_folder)
 
     # Extract stimulus times and types
@@ -88,59 +100,113 @@ for path in path_list:
     plt.cla()
     plt.close()
 
-    # Analyse
-    for i, fish in enumerate(plate.wells):
-        figure_path = fish_figures_folder + f'/{(i+1):02d}_fish.png'
-        x = fish.x
-        y = fish.y
-        area = fish.area
-        heading = fish.heading
-        motion = fish.motion
+    # PPI responses
+    pre_frames = 50
+    post_frames = 150
+    single_responses = np.zeros((len(single_pulses), pre_frames+post_frames))
+    paired_responses = np.zeros((len(paired_pulses), pre_frames+post_frames))
 
-        fig = plt.figure(figsize=(10, 8))
-        plt.subplot(2,3,1)
-        plt.title('Motion')
-        plt.plot(motion)
-        plt.subplot(2,3,2)
-        plt.title('Tracking')
-        plt.plot(x,y,'.', markersize=3, color=[0,0,0,0.01])
-        plt.xlim(fish.ul[0], fish.lr[0])
-        plt.ylim(fish.ul[1], fish.lr[1])
-        plt.subplot(2,3,3)
-        plt.title('Area')
-        plt.plot(area, 'm.', markersize=2, alpha=0.25)
-        plt.subplot(2,3,6)
-        plt.title('Heading')
-        plt.plot(heading, 'g.', markersize=2, alpha=0.25)
-
-        # PPI responses
-        pre_frames = 50
-        post_frames = 150
-        single_responses = np.zeros((len(single_pulses), pre_frames+post_frames))
-        for j, p in enumerate(single_pulses):
-            single_responses[j, :] = motion[(p-(pre_frames+1)):(p+post_frames-1)]
-        plt.subplot(2,3,4)
-        plt.title('Single Pulse')
-        plt.vlines(pre_frames, 0, np.max(single_responses), color=[0,1,0,1])
-        plt.plot(single_responses.T, color=[0,0,0,0.25])
-        plt.plot(np.mean(single_responses, axis=0), color=[1.0,0,0,1.0])
-        plt.ylim(0, np.max(motion))
-        paired_responses = np.zeros((len(paired_pulses), pre_frames+post_frames))
+    # Extract all control responses
+    for c in controls[p]:
+        motion = plate.wells[c-1].motion
+        for j, pulse in enumerate(single_pulses):
+            single_responses[j, :] = motion[(pulse-(pre_frames+1)):(pulse+post_frames-1)]
         for j, pair in enumerate(paired_pulses):
-            p = pair[0]
-            paired_responses[j, :] = motion[(p-(pre_frames+1)):(p+post_frames-1)]
-        plt.subplot(2,3,5)
-        plt.title('Paired Pulse')
-        plt.vlines(pre_frames, 0, np.max(paired_responses), color=[0,1,0,1])
-        plt.vlines(pre_frames+30, 0, np.max(paired_responses), color=[0,1,0,1])
-        plt.plot(paired_responses.T, color=[0,0,0,0.25])
-        plt.plot(np.mean(paired_responses, axis=0), color=[1.0,0,0,1.0])
-        plt.ylim(0, np.max(motion))
+            pulse = pair[0]
+            paired_responses[j, :] = motion[(pulse-(pre_frames+1)):(pulse+post_frames-1)]
+        control_single_responses = np.dstack((control_single_responses, single_responses))
+        control_paired_responses = np.dstack((control_paired_responses, paired_responses))
 
-        # Save
-        plt.savefig(figure_path, dpi=180)
-        print(f'Analysing Fish {i} of 96')
-        plt.cla()
-        plt.close()
+    # Extract all test responses
+    for t in tests[p]:
+        motion = plate.wells[t-1].motion
+        for j, pulse in enumerate(single_pulses):
+            single_responses[j, :] = motion[(pulse-(pre_frames+1)):(pulse+post_frames-1)]
+        for j, pair in enumerate(paired_pulses):
+            pulse = pair[0]
+            paired_responses[j, :] = motion[(pulse-(pre_frames+1)):(pulse+post_frames-1)]
+        test_single_responses = np.dstack((test_single_responses, single_responses))
+        test_paired_responses = np.dstack((test_paired_responses, paired_responses))
+
+# Summarize
+control_single_averages = np.mean(control_single_responses, axis=0)
+control_paired_averages = np.mean(control_paired_responses, axis=0)
+test_single_averages = np.mean(test_single_responses, axis=0)
+test_paired_averages = np.mean(test_paired_responses, axis=0)
+
+control_single_mean = np.mean(control_single_averages, axis=1)
+control_paired_mean = np.mean(control_paired_averages, axis=1)
+test_single_mean = np.mean(test_single_averages, axis=1)
+test_paired_mean = np.mean(test_paired_averages, axis=1)
+
+fig = plt.figure(figsize=(10, 8))
+plt.subplot(2,2,1)
+plt.plot(control_single_averages, color = [0, 0, 0, 0.1])
+plt.plot(control_single_mean, linewidth=2, color = [1, 0, 0, 0.75])
+plt.subplot(2,2,2)
+plt.plot(control_paired_averages, color = [0, 0, 0, 0.1])
+plt.plot(control_paired_mean, linewidth=2, color = [1, 0, 0, 0.75])
+plt.subplot(2,2,3)
+plt.plot(test_single_averages, color = [0, 0, 0, 0.1])
+plt.plot(test_single_mean, linewidth=2, color = [1, 0, 0, 0.75])
+plt.subplot(2,2,4)
+plt.plot(test_paired_averages, color = [0, 0, 0, 0.1])
+plt.plot(test_paired_mean, linewidth=2, color = [1, 0, 0, 0.75])
+plt.show()
+
+#    # Analyse
+#    for i, fish in enumerate(plate.wells):
+#        figure_path = fish_figures_folder + f'/{(i+1):02d}_fish.png'
+#        x = fish.x
+#        y = fish.y
+#        area = fish.area
+#        heading = fish.heading
+#        motion = fish.motion
+#
+#        fig = plt.figure(figsize=(10, 8))
+#        plt.subplot(2,3,1)
+#        plt.title('Motion')
+#        plt.plot(motion)
+#        plt.subplot(2,3,2)
+#        plt.title('Tracking')
+#        plt.plot(x,y,'.', markersize=3, color=[0,0,0,0.01])
+#        plt.xlim(fish.ul[0], fish.lr[0])
+#        plt.ylim(fish.ul[1], fish.lr[1])
+#        plt.subplot(2,3,3)
+#        plt.title('Area')
+#        plt.plot(area, 'm.', markersize=2, alpha=0.25)
+#        plt.subplot(2,3,6)
+#        plt.title('Heading')
+#        plt.plot(heading, 'g.', markersize=2, alpha=0.25)
+#
+#        # PPI responses
+#        pre_frames = 50
+#        post_frames = 150
+#        single_responses = np.zeros((len(single_pulses), pre_frames+post_frames))
+#        for j, p in enumerate(single_pulses):
+#            single_responses[j, :] = motion[(p-(pre_frames+1)):(p+post_frames-1)]
+#        plt.subplot(2,3,4)
+#        plt.title('Single Pulse')
+#        plt.vlines(pre_frames, 0, np.max(single_responses), color=[0,1,0,1])
+#        plt.plot(single_responses.T, color=[0,0,0,0.25])
+#        plt.plot(np.mean(single_responses, axis=0), color=[1.0,0,0,1.0])
+#        plt.ylim(0, np.max(motion))
+#        paired_responses = np.zeros((len(paired_pulses), pre_frames+post_frames))
+#        for j, pair in enumerate(paired_pulses):
+#            p = pair[0]
+#            paired_responses[j, :] = motion[(p-(pre_frames+1)):(p+post_frames-1)]
+#        plt.subplot(2,3,5)
+#        plt.title('Paired Pulse')
+#        plt.vlines(pre_frames, 0, np.max(paired_responses), color=[0,1,0,1])
+#        plt.vlines(pre_frames+30, 0, np.max(paired_responses), color=[0,1,0,1])
+#        plt.plot(paired_responses.T, color=[0,0,0,0.25])
+#        plt.plot(np.mean(paired_responses, axis=0), color=[1.0,0,0,1.0])
+#        plt.ylim(0, np.max(motion))
+#
+#        # Save
+#        plt.savefig(figure_path, dpi=180)
+#        print(f'Analysing Fish {i} of 96')
+#        plt.cla()
+#        plt.close()
 
 #FIN
