@@ -66,11 +66,8 @@ for path in path_list:
     num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     vid.release()
 
-    # Debug
-    num_frames = 13472
-
     # Determine processing chunks
-    chunk_size = 1000
+    chunk_size = 1000000
     start_frames= []
     end_frames= []
     for c in range(0, num_frames, chunk_size):
