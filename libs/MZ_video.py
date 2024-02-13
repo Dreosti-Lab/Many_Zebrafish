@@ -141,10 +141,10 @@ def fish_tracking_roi(video_path, plate, intensity_roi, start_frame=0, end_frame
         fish.previous = np.copy(crop)
 
     # Reset video
-    vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    vid.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
     
     # Video Loop
-    report_interval = 10000
+    report_interval = 1000
     start_time = time.time()
     for f in range(start_frame, end_frame, 1):
 
@@ -152,7 +152,6 @@ def fish_tracking_roi(video_path, plate, intensity_roi, start_frame=0, end_frame
         report = ((f % report_interval) == 0)
 
         # Read next frame and convert to grayscale
-        vid.set(cv2.CAP_PROP_POS_FRAMES, f)
         ret, im = vid.read()
         frame = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
         # -RV-
