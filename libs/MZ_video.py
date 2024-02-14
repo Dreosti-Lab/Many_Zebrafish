@@ -146,7 +146,7 @@ def fish_tracking_roi(video_path, plate, intensity_roi, start_frame=0, end_frame
     # Video Loop
     report_interval = 1000
     start_time = time.time()
-    for f in range(start_frame, end_frame, 1):
+    for f in range(start_frame, end_frame+1, 1):
 
         # Is this a report/validate frame?
         report = ((f % report_interval) == 0)

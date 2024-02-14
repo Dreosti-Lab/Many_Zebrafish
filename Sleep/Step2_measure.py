@@ -67,15 +67,15 @@ for path in path_list:
     vid.release()
 
     # Determine processing chunks
-    chunk_size = 1000000
+    chunk_size = 100000
     start_frames= []
     end_frames= []
     for c in range(0, num_frames, chunk_size):
         start_frames.append(c)
-        if (c + chunk_size) > num_frames:
-            end_frames.append(num_frames)
+        if (c + chunk_size) >= num_frames:
+            end_frames.append(num_frames-1)
         else:
-            end_frames.append(c + chunk_size)
+            end_frames.append(c + chunk_size - 1)
     
     # Process behaviour in chunks
     intensity_roi = ((50,250), (80,850))
