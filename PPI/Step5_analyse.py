@@ -38,12 +38,32 @@ importlib.reload(MZU)
 summary_path = "/home/kampff/data/Schizophrenia_data/Sumamry_Info.xlsx"
 
 # Specify experiment abbreviation
-experiment = 'Trio'
 #experiment = 'Akap11'
+experiment = 'Cacna1g'
+#experiment = 'Gria3'
+#experiment = 'Grin2a'
+#experiment = 'Hcn4'
+#experiment = 'Herc1'
+#experiment = 'Nr3c2'
+#experiment = 'Sp4'
+#experiment = 'Trio'
+#experiment = 'Xpo7'
+#experiment_folder = base_path + '/akap11'
+experiment_folder = base_path + '/cacna1g'
+#experiment_folder = base_path + '/gria3'
+#experiment_folder = base_path + '/grin2a'
+#experiment_folder = base_path + '/hcn4'
+#experiment_folder = base_path + '/herc1'
+#experiment_folder = base_path + '/nr3c2'
+#experiment_folder = base_path + '/sp4'
+#experiment_folder = base_path + '/trio'
+#experiment_folder = base_path + '/xpo7'
+
 plates, paths, controls, tests = MZU.parse_summary_PPI(summary_path, experiment)
 
 # Set list of video paths
 path_list = paths
+#path_list.remove(path_list[1])
 
 # Accumulators
 control_mean_single = []
@@ -62,6 +82,7 @@ for p, path in enumerate(path_list):
     figures_folder = output_folder + '/figures'
     controls_figure_folder = figures_folder + '/controls'
     tests_figure_folder = figures_folder + '/tests'
+    experiment_analysis_folder = experiment_folder + '/analysis'
 
     # Create figures folder
     if not os.path.exists(figures_folder):
@@ -75,12 +96,16 @@ for p, path in enumerate(path_list):
     if not os.path.exists(tests_figure_folder):
         os.makedirs(tests_figure_folder)   
 
+    # Create experiment analysis folder
+    if not os.path.exists(experiment_analysis_folder):
+        os.makedirs(experiment_analysis_folder)   
+
     # Load stimulus (pulse) times
     pulses = np.load(responses_folder + '/pulses.npz')
     single_pulses = pulses['single_pulses']
     paired_pulses = pulses['paired_pulses']
 
-    # Plot control responses
+    # Plot control responses (only if they don't respond to first pulse)
     control_paths = glob.glob(controls_folder+'/*.npz')
     for path in control_paths:
         name = os.path.basename(path)[:-4]
@@ -90,15 +115,46 @@ for p, path in enumerate(path_list):
         paired_responses = behaviour['paired_responses']
         fig = plt.figure(figsize=(10, 10))
         plt.title(name)
+        # Single Pulses
+        x = single_responses[0,:,:]
+        y = single_responses[1,:,:]
+        heading = single_responses[2,:,:]
+        area = single_responses[3,:,:]
         motion = single_responses[4,:,:]
-        plt.plot(motion, color = [1, 0.5, 0.5, 0.1])
-        mean_response = np.mean(motion, axis=1)
-        control_mean_single.append(mean_response)
+        dx = np.diff(x, axis=0)
+        dy = np.diff(y, axis=0)
+        response = np.sqrt(dx*dx + dy*dy)
+        valid_responses = []
+        large_responses = []
+        for r in range(response.shape[1]):
+            if np.sum(area[:,r] == -1.0) < 5:
+                large_response_size = np.abs((x[49,r] - x[60,r]) + (y[49,r] - y[60,r]))
+                valid_responses.append(r)
+                large_responses.append(large_response_size)
+                plt.plot(response, color = [1, 0.5, 0.5, 0.1])
+        if len(valid_responses) > 0:
+            mean_response = np.mean(response[:,valid_responses], axis=1)
+            control_mean_single.append(mean_response)
         plt.plot(mean_response, linewidth=2, color = [1, 0, 0, 0.5])
+        # Paired Pulses
+        x = paired_responses[0,:,:]
+        y = paired_responses[1,:,:]
+        heading = paired_responses[2,:,:]
+        area = paired_responses[3,:,:]
         motion = paired_responses[4,:,:]
-        plt.plot(motion, color = [0.5, 0.5, 1.0, 0.1])
-        mean_response = np.mean(motion, axis=1)
-        control_mean_paired.append(mean_response)
+        dx = np.diff(x, axis=0)
+        dy = np.diff(y, axis=0)
+        response = np.sqrt(dx*dx + dy*dy)
+        valid_responses = []
+        for r in range(response.shape[1]):
+            if np.sum(area[:,r] == -1.0) < 5:
+                small_response_size = np.abs((x[19,r] - x[25,r])) + np.abs((y[19,r] - y[25,r]))
+                if small_response_size < 10:
+                    valid_responses.append(r)
+                    plt.plot(response[:,r], color = [0.5, 0.5, 1.0, 0.1])
+        if len(valid_responses) > 0:
+            mean_response = np.mean(response[:,valid_responses], axis=1)
+            control_mean_paired.append(mean_response)
         plt.plot(mean_response, linewidth=2, color = [0, 0, 1, 0.5])
         plt.savefig(figure_path, dpi=180)
         plt.cla()
@@ -114,15 +170,43 @@ for p, path in enumerate(path_list):
         paired_responses = behaviour['paired_responses']
         fig = plt.figure(figsize=(10, 10))
         plt.title(name)
+        # Single Pulses
+        x = single_responses[0,:,:]
+        y = single_responses[1,:,:]
+        heading = single_responses[2,:,:]
+        area = single_responses[3,:,:]
         motion = single_responses[4,:,:]
-        plt.plot(motion, color = [1, 0.5, 0.5, 0.1])
-        mean_response = np.mean(motion, axis=1)
-        test_mean_single.append(mean_response)
+        dx = np.diff(x, axis=0)
+        dy = np.diff(y, axis=0)
+        response = np.sqrt(dx*dx + dy*dy)
+        valid_responses = []
+        for r in range(response.shape[1]):
+            if np.sum(area[:,r] == -1.0) < 5:
+                valid_responses.append(r)
+                plt.plot(response, color = [1, 0.5, 0.5, 0.1])
+        if len(valid_responses) > 0:
+            mean_response = np.mean(response[:,valid_responses], axis=1)
+            test_mean_single.append(mean_response)
         plt.plot(mean_response, linewidth=2, color = [1, 0, 0, 0.5])
+        # Paired Pulses
+        x = paired_responses[0,:,:]
+        y = paired_responses[1,:,:]
+        heading = paired_responses[2,:,:]
+        area = paired_responses[3,:,:]
         motion = paired_responses[4,:,:]
-        plt.plot(motion, color = [0.5, 0.5, 1.0, 0.1])
-        mean_response = np.mean(motion, axis=1)
-        test_mean_paired.append(mean_response)
+        dx = np.diff(x, axis=0)
+        dy = np.diff(y, axis=0)
+        response = np.sqrt(dx*dx + dy*dy)
+        valid_responses = []
+        for r in range(response.shape[1]):
+            if np.sum(area[:,r] == -1.0) < 5:
+                small_response_size = np.abs((x[19,r] - x[25,r])) + np.abs((y[19,r] - y[25,r]))
+                if small_response_size < 10:
+                    valid_responses.append(r)
+                    plt.plot(response[:,r], color = [0.5, 0.5, 1.0, 0.1])
+        if len(valid_responses) > 0:
+            mean_response = np.mean(response[:,valid_responses], axis=1)
+            test_mean_paired.append(mean_response)
         plt.plot(mean_response, linewidth=2, color = [0, 0, 1, 0.5])
         plt.savefig(figure_path, dpi=180)
         plt.cla()
@@ -138,19 +222,23 @@ average_control_mean_paired = np.mean(control_mean_paired, axis=0)
 average_test_mean_single = np.mean(test_mean_single, axis=0)
 average_test_mean_paired = np.mean(test_mean_paired, axis=0)
 
-summary_path = output_folder + '/summary.png'
+summary_path = experiment_analysis_folder + '/summary.png'
 fig = plt.figure(figsize=(10, 10))
 plt.title(experiment)
 plt.subplot(2,1,1)
 plt.plot(control_mean_single.T, linewidth=1, color = [1, 0.5, 0.5, 0.1])
 plt.plot(average_control_mean_single, linewidth=2, color = [1, 0, 0, 0.5])
-plt.plot(test_mean_single.T, linewidth=1, color = [0.5, 0.5, 1.0, 0.1])
-plt.plot(average_test_mean_single, linewidth=2, color = [0, 0, 1, 0.5])
+plt.plot(control_mean_paired.T, linewidth=1, color = [0.5, 0.5, 1.0, 0.1])
+plt.plot(average_control_mean_paired, linewidth=2, color = [0, 0, 1, 0.5])
+plt.xlim([0, 100])
+plt.ylim([0, 10])
 plt.subplot(2,1,2)
-plt.plot(control_mean_paired.T, linewidth=1, color = [1, 0.5, 0.5, 0.1])
-plt.plot(average_control_mean_paired, linewidth=2, color = [1, 0, 0, 0.5])
+plt.plot(test_mean_single.T, linewidth=1, color = [1.0, 0.5, 0.5, 0.1])
+plt.plot(average_test_mean_single, linewidth=2, color = [1, 0, 0, 0.5])
 plt.plot(test_mean_paired.T, linewidth=1, color = [0.5, 0.5, 1.0, 0.1])
 plt.plot(average_test_mean_paired, linewidth=2, color = [0, 0, 1, 0.5])
+plt.xlim([0, 100])
+plt.ylim([0, 10])
 plt.savefig(summary_path, dpi=180)
 plt.close()
 

@@ -37,12 +37,21 @@ importlib.reload(MZU)
 summary_path = "/home/kampff/data/Schizophrenia_data/Sumamry_Info.xlsx"
 
 # Specify experiment abbreviation
-experiment = 'Trio'
-#experiment = 'Akap11'
+experiment = 'Akap11'
+#experiment = 'Cacna1g'
+#experiment = 'Gria3'
+#experiment = 'Grin2a'
+#experiment = 'Hcn4'
+#experiment = 'Herc1'
+#experiment = 'Nr3c2'
+#experiment = 'Sp4'
+#experiment = 'Trio'
+#experiment = 'Xpo7'
 plates, paths, controls, tests = MZU.parse_summary_PPI(summary_path, experiment)
 
 # Set list of video paths
 path_list = paths
+#path_list.remove(path_list[1])
 
 # Analyse behaviour for video paths (*.avi) in path_list
 control_single_responses = np.empty((8,200,0))
