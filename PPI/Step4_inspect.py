@@ -26,12 +26,14 @@ import cv2
 # Import modules
 import MZ_plate as MZP
 import MZ_video as MZV
+import MZ_bouts as MZB
 import MZ_utilities as MZU
 
 # Reload modules
 import importlib
 importlib.reload(MZP)
 importlib.reload(MZV)
+importlib.reload(MZB)
 importlib.reload(MZU)
 #----------------------------------------------------------
 
@@ -145,10 +147,13 @@ for p, path in enumerate(path_list):
                 x = int((single_responses[0, frame_index, i] - fish.ul[0]) * (clip_size/crop.shape[1]))
                 y = int((single_responses[1, frame_index, i] - fish.ul[1]) * (clip_size/crop.shape[0]))
                 motion = single_responses[4, frame_index, i]
+                offset = (fish.ul[0], fish.ul[1])
+                scale = ((clip_size/crop.shape[1]), (clip_size/crop.shape[0]))
+                rgb = MZB.draw_trajectory(rgb, single_responses[:,:,i], offset, scale, 1, (0,255,0), 1)
+                rgb = cv2.circle(rgb, (x,y), 3, (0,255,255), 2)
                 responses_drawn.append((frame_index*2, 250-int(motion/25)))
                 for d in responses_drawn:
                     rgb = cv2.circle(rgb, d, 1, (0,0,255), 1)
-                rgb = cv2.circle(rgb, (x,y), 3, (0,255,255), 2)
                 ret = video.write(rgb)
             ret = video.release()
 
