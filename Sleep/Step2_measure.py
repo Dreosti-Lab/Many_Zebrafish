@@ -66,11 +66,18 @@ for path in path_list:
     num_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     vid.release()
 
+    # Are you restarting a long tracking?
+    restart = False
+    if restart:
+        restart_frame = 4300000
+    else:
+        restart_frame = 0
+
     # Determine processing chunks
     chunk_size = 100000
     start_frames= []
     end_frames= []
-    for c in range(0, num_frames, chunk_size):
+    for c in range(restart_frame, num_frames, chunk_size):
         start_frames.append(c)
         if (c + chunk_size) >= num_frames:
             end_frames.append(num_frames-1)
