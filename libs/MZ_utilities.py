@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from openpyxl import load_workbook
 import math
 import glob
+import shutil
 import cv2
 
 # Utilities for analysing 96-well plate experiments
@@ -42,6 +43,30 @@ def extract_ppi_stimuli(led_intensity):
             p = p + 2
             
     return single_pulses, paired_pulses
+
+# Extract behaviour for a well (fish) from a plate
+def extract_behaviour(plate, well):
+    num_frames = len(plate.intensity)
+    behaviour = np.zeros((5, num_frames), dtype=np.float32)
+    behaviour[0,:] = plate.wells[well].x
+    behaviour[1,:] = plate.wells[well].y
+    behaviour[2,:] = plate.wells[well].heading
+    behaviour[3,:] = plate.wells[well].area
+    behaviour[4,:] = plate.wells[well].motion
+    return behaviour
+
+# Extract response around a frame index (e. g. stimulus or PPI pulse)
+def extract_response(behaviour, index_frame, pre_frames, post_frames):
+        response = np.zeros((5, pre_frames+post_frames+1))
+        response = behaviour[:, (index_frame-pre_frames):(index_frame+post_frames+1)]
+        return response
+
+# Extract responses around a list of frame indices
+def extract_responses(behaviour, index_frames, pre_frames, post_frames):
+    responses = np.zeros((5, pre_frames+post_frames+1, len(index_frames)))
+    for i, index_frame in enumerate(index_frames):
+        responses[:, :, i] = extract_response(behaviour, index_frame, pre_frames, post_frames)
+    return responses
 
 # Load path list
 def load_path_list(path_list_path):
@@ -100,5 +125,18 @@ def parse_summary_PPI(summary_path, gene_name):
         all_controls.append(controls)
         all_tests.append(tests)
     return plates, paths, all_controls, all_tests
+
+# Create a folder (if it does not exist)
+def create_folder(folder_path):
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    return
+
+# Clear a folder (or create)
+def clear_folder(folder_path):
+    if os.path.exists(folder_path):
+        shutil.rmtree(folder_path)
+    os.makedirs(folder_path)
+    return
 
 #FIN

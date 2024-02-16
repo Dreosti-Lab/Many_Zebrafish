@@ -42,9 +42,8 @@ for path in path_list:
     output_folder = os.path.dirname(video_path) + '/analysis'
 
     # Create output folder
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
+    MZU.create_folder(output_folder)
+    
     # Generate initial background
     MZV.generate_initial_background(video_path, 50, 100, output_folder)   # 50 frames (4 sec intervals)
 
