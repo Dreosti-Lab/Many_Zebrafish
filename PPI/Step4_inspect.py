@@ -118,9 +118,9 @@ for p, path in enumerate(path_list):
     vid.release()
 
     # Feedback paremters
-    clip_size = 256
+    clip_size = 128
 
-    # Inspect control responses
+    # Inspect control responses to single pulses
     control_paths = glob.glob(controls_folder+'/*.npz')
     for control_path in control_paths:
         name = os.path.basename(control_path)[:-4]
@@ -130,31 +130,44 @@ for p, path in enumerate(path_list):
         paired_responses = behaviour['paired_responses']
         fish = plate.wells[well_number-1]
         
-        # Generate feedback video
+        # Generate response video for each stimulus
         for i, pulse in enumerate(single_pulses):
+            # Classify response
+            response = single_responses[:,:,i]
+            valid_bout = MZB.valid_bout(response)
+            signal = response[4,:]
+
+            # Prepare clip
             movie_path = controls_inspect_folder + f'/{name}_single_response_{i}.avi'
             fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
             video = cv2.VideoWriter(movie_path, fourcc, 30, (clip_size,clip_size))
-            responses_drawn = []
+
+            # Render frames
             for frame_index in range(0, pre_frames+post_frames):
                 frame = single_responses_frames[i][frame_index]
                 crop = MZV.get_ROI_crop(frame, (fish.ul, fish.lr))
                 gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
                 resized = cv2.resize(gray, (clip_size, clip_size))
-                #enhanced = cv2.equalizeHist(resized)
                 enhanced = cv2.normalize(resized, None, 255, 0, cv2.NORM_MINMAX, cv2.CV_8UC1)
                 rgb = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR)
-                x = int((single_responses[0, frame_index, i] - fish.ul[0]) * (clip_size/crop.shape[1]))
-                y = int((single_responses[1, frame_index, i] - fish.ul[1]) * (clip_size/crop.shape[0]))
-                motion = single_responses[4, frame_index, i]
+
+                x = response[0, frame_index]
+                y = response[1, frame_index]
+                heading = response[2, frame_index]
+                motion = response[4, frame_index]
                 offset = (fish.ul[0], fish.ul[1])
                 scale = ((clip_size/crop.shape[1]), (clip_size/crop.shape[0]))
-                rgb = MZB.draw_trajectory(rgb, single_responses[:,:,i], offset, scale, 1, (0,255,0), 1)
-                rgb = cv2.circle(rgb, (x,y), 3, (0,255,255), 2)
-                responses_drawn.append((frame_index*2, 250-int(motion/25)))
-                for d in responses_drawn:
-                    rgb = cv2.circle(rgb, d, 1, (0,0,255), 1)
+
+                rgb = MZB.plot_signal(rgb, signal, 2, 0.01, (255,0,255), 1, highlight=frame_index)
+                rgb = MZB.draw_trajectory(rgb, response, offset, scale, 1, (0,255,0), 1)
+                rgb = MZB.plot_fish(rgb, (x,y), heading, offset, scale, (255,0,0), 1)
+                rgb = MZB.draw_response_type(rgb, valid_bout)
                 ret = video.write(rgb)
+
+            # Close clip
             ret = video.release()
+
+            # Report
+            print(f' - {name}: {i} - {valid_bout}')
 
 #FIN
