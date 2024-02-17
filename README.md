@@ -15,8 +15,18 @@ python3 -m venv MZPY
 ```
 - Activate the virtual environment
 ```bash
+# Mac/Linux
 source MZPY/bin/activate
+
+# Windows
+./MZPY/Scripts/activate.ps1
+
+# Note: you may need to allow scripts to run on PowerShell
+# - Open PowerShell as administrator
+#    (right-click and select "Run as Adminstrator") from the Windows start menu
+# PS> Set-ExecutionPolicy RemoteSigned
 ```
+- You should now see ***(MZPY)*** activated in the terminal
 - Now use *pip* to install the required python packages (see below)
 
 ## Python Package Requirements
