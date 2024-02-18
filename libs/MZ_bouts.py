@@ -125,22 +125,54 @@ def is_valid_bout(bout):
     dy = np.diff(y, prepend=y[0])
     return True
 
+# Accumulate angle (heading) (and remove flips and zero crossings)
+def cumulative_angle(heading):
+    delta = np.diff(heading, prepend=heading[0])
+    # Find zero crossings and correct
+    crossings = np.abs(delta) > 270
+    delta[crossings] = delta[crossings] - (np.sign(delta[crossings]) * 360.0)
+    # Find flips (heading swap errors) and zero
+    flips = np.abs(delta) > 160
+    num_flips = np.sum(flips)
+    delta[flips] = 0
+    cumulative_angle = np.cumsum(delta)
+    return num_flips, cumulative_angle
+
 # Measure bout
-def measure_response(bout, ):
-    bout_length = bout.shape[1]
+def measure_response(bout, stimulus_index, motion_threshold):
+    bout_length = bout.shape[0]
     x = bout[:, 0]
     y = bout[:, 1]
     heading = bout[:, 2]
+    num_flips, cumulative_heading = cumulative_angle(heading)
+    plt.plot(cumulative_heading)
+    print(num_flips)
+    plt.show()
     area = bout[:, 3]
     motion = bout[:, 4]
-    return x
+    start_index = stimulus_index + np.where(motion[stimulus_index:-1] > motion_threshold)[0][0]
+    stop_index = start_index + np.where(motion[start_index:-1] < motion_threshold)[0][0]
+    duration = stop_index-start_index
+    latency = start_index - stimulus_index
+    start_x = np.median(x[(start_index-6):(start_index-1)])
+    start_y = np.median(y[(start_index-6):(start_index-1)])
+    start_heading = np.median(cumulative_heading[(start_index-6):(start_index-1)])
+    stop_x = np.median(x[stop_index:(stop_index+5)])
+    stop_y = np.median(y[stop_index:(stop_index+5)])
+    stop_heading = np.median(cumulative_heading[stop_index:(stop_index+5)])
+    dx = stop_x - start_x
+    dy = stop_y - start_y
+    distance = np.sqrt((dx*dx) + (dy*dy))
+    turning = stop_heading - start_heading
+    return (duration, latency, distance, turning)
 
 # Inspect bout
 def inspect_bout(movie, roi, bout, clip_path):
     valid_bout = is_valid_bout(bout)
-    signal = measure_response(bout)
-    bout_length = bout.shape[1]
-    clip_size = 128
+    metrics = measure_response(bout, 51, 20)
+    signal = bout[:,4]
+    bout_length = bout.shape[0]
+    clip_size = 256
     fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
     video = cv2.VideoWriter(clip_path, fourcc, 30, (clip_size,clip_size))
     for frame_index in range(0, bout_length):
@@ -156,17 +188,18 @@ def inspect_bout(movie, roi, bout, clip_path):
         motion = bout[frame_index, 4]
         offset = (roi[0][0],roi[0][1])
         scale = ((clip_size/crop.shape[1]), (clip_size/crop.shape[0]))
-        rgb = plot_signal(rgb, signal, 2, 2.0, (255,0,255), 1, highlight=frame_index)
+        rgb = plot_signal(rgb, signal, 2, 0.01, (255,0,255), 1, highlight=frame_index)
         rgb = draw_trajectory(rgb, bout, offset, scale, 1, (0,255,0), 1)
         rgb = plot_fish(rgb, (x,y), heading, offset, scale, (255,0,0), 1)
         rgb = draw_response_type(rgb, valid_bout)
+        rgb = draw_response_metrics(rgb, metrics)
         ret = video.write(rgb)
     ret = video.release()
     return
 
 # Draw bout trajectory
 def draw_trajectory(image, bout, offset, scale, radius, color, thickness):
-    bout_length = bout.shape[1]
+    bout_length = bout.shape[0]
     x = (bout[:, 0] - offset[0]) * scale[0]
     y = (bout[:, 1] - offset[1]) * scale[1]
     for i in range(bout_length):
@@ -212,11 +245,9 @@ def plot_signal(image, signal, vertical_offset, vertical_scale, line_color, line
 
 # Draw response type
 def draw_response_type(image, valid_response):
-    width = image.shape[1]
-    height = image.shape[1]
     font = cv2.FONT_HERSHEY_SIMPLEX
     size = 1
-    pos = (5,25)
+    pos = (15,55)
     thickness = 2
     line_type = 1
     if valid_response:
@@ -225,6 +256,18 @@ def draw_response_type(image, valid_response):
     else:
         color = (0,0,255)
         image = cv2.putText(image,'X', pos, font, size, color, thickness, line_type)
+    return image
+
+# Draw response metrics
+def draw_response_metrics(image, metrics):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    size = 1
+    pos = (5,25)
+    thickness = 1
+    line_type = 1
+    color = (0,128,255)
+    metric_text = f'{metrics[0]:01d} {metrics[1]:01d} {int(metrics[2]):02d} {int(metrics[3]):03d}'
+    image = cv2.putText(image, metric_text, pos, font, size, color, thickness, line_type)
     return image
 
 #FIN

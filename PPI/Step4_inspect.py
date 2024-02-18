@@ -137,7 +137,6 @@ for p, path in enumerate(path_list):
         # Generate response video for each second of paired pulse stimulus
         for i, pulse in enumerate(second_pulses):
             response = paired_responses[:,:,i]
-            response = MZB.smooth_bout(response)
             clip_path = controls_inspect_folder + f'/{name}_paired_response_{i}.avi'
             MZB.inspect_bout(paired_responses_frames[i], (fish.ul, fish.lr), response, clip_path)
             print(f' - {name}: {i} - pp')
