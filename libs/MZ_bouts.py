@@ -11,18 +11,124 @@ import matplotlib.pyplot as plt
 import math
 import cv2
 
-# Utilities for analysing bouts performed in 96-well plate experiments
+# Import modules
+import MZ_plate as MZP
+import MZ_video as MZV
+
+# Reload modules
+import importlib
+importlib.reload(MZP)
+importlib.reload(MZV)
+
+# Utilities for analysing and inspecting bouts performed in 96-well plate experiments
+
+# Outlier detection
+def detect_outliers(x, window_size, threshold):
+    smoothed = np.copy(x)
+    num_samples = len(x)
+    dx = np.diff(x, prepend=x[0])
+    overs = dx > threshold
+    unders = dx < -threshold
+    outliers = []
+    for i in range(num_samples-window_size):
+        over_window = overs[i:(i+window_size)]
+        under_window = unders[i:(i+window_size)]
+        num_overs = np.sum(over_window)
+        num_unders = np.sum(under_window)
+        if((num_overs == 1) and (num_unders == 1)):
+            over_index = np.where(over_window)[0][0]
+            under_index = np.where(under_window)[0][0]
+            overs[i+over_index] = False
+            unders[i+under_index] = False
+            if(over_index > under_index):
+                first = i+under_index
+                second = i+over_index
+            else:
+                first = i+over_index
+                second = i+under_index
+            print(f"outliers: {first} and {second}")
+            outliers.append((first, second))
+        if len(outliers) > 0:
+            for outlier in outliers:
+                start_index = outlier[0]
+                stop_index = outlier[1]
+                start_value = smoothed[start_index-1]
+                stop_value = smoothed[stop_index]
+                delta = stop_value-start_value
+                for j, index in enumerate(range(start_index, stop_index)):
+                    smoothed[index] = start_value + (j * delta)
+    return smoothed
+
+# Smooth bout (remove obvious tracking failures)
+def smooth_bout(bout):
+    bout_length = bout.shape[1]
+    x = bout[0, :]
+    y = bout[1, :]
+    heading = bout[2, :]
+    sx = detect_outliers(x,window_size=10,threshold=5)
+    sy = detect_outliers(y,window_size=10,threshold=5)
+    plt.plot(x)
+    plt.plot(sx)
+    plt.show()
+    return bout
 
 # Is this bout valid?
 #  - < 5% tracking failures
-def valid_bout(bout):
+def is_valid_bout(bout):
     bout_length = bout.shape[1]
+    x = bout[0, :]
+    y = bout[1, :]
     area = bout[3, :]
     invalid_frames = np.sum(area == -1.0)
     if invalid_frames > (0.10 * bout_length):
         return False
-    else:
-        return True
+
+    # Are there tracking jumps (big x/y shifts that flip)?
+    dx = np.diff(x, prepend=x[0])
+    dy = np.diff(y, prepend=y[0])
+    return True
+
+# Measure bout
+def measure_response(bout):
+    bout_length = bout.shape[1]
+    x = bout[0, :]
+    y = bout[1, :]
+    heading = bout[2, :]
+    area = bout[3, :]
+    motion = bout[4, :]
+    dx = np.diff(x, prepend=x[0])
+    dy = np.diff(y, prepend=y[0])
+    
+    return dx
+
+# Inspect bout
+def inspect_bout(movie, roi, bout, clip_path):
+    valid_bout = is_valid_bout(bout)
+    signal = measure_response(bout)
+    bout_length = bout.shape[1]
+    clip_size = 128
+    fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+    video = cv2.VideoWriter(clip_path, fourcc, 30, (clip_size,clip_size))
+    for frame_index in range(0, bout_length):
+        frame = movie[frame_index]
+        crop = MZV.get_ROI_crop(frame, roi)
+        gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+        resized = cv2.resize(gray, (clip_size, clip_size))
+        enhanced = cv2.normalize(resized, None, 255, 0, cv2.NORM_MINMAX, cv2.CV_8UC1)
+        rgb = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR)
+        x = bout[0, frame_index]
+        y = bout[1, frame_index]
+        heading = bout[2, frame_index]
+        motion = bout[4, frame_index]
+        offset = (roi[0][0],roi[0][1])
+        scale = ((clip_size/crop.shape[1]), (clip_size/crop.shape[0]))
+        rgb = plot_signal(rgb, signal, 2, 2.0, (255,0,255), 1, highlight=frame_index)
+        rgb = draw_trajectory(rgb, bout, offset, scale, 1, (0,255,0), 1)
+        rgb = plot_fish(rgb, (x,y), heading, offset, scale, (255,0,0), 1)
+        rgb = draw_response_type(rgb, valid_bout)
+        ret = video.write(rgb)
+    ret = video.release()
+    return
 
 # Draw bout trajectory
 def draw_trajectory(image, bout, offset, scale, radius, color, thickness):
@@ -48,7 +154,7 @@ def plot_fish(image, centroid, heading, offset, scale, line_color, line_thicknes
     ty = cy + int(round(25 * -dy))
     image = cv2.line(image, (hx, hy), (tx, ty), line_color, line_thickness)
     image = cv2.circle(image, (hx, hy), 3, (255, 255, 0), 1)
-    image = cv2.circle(image, (cx, cy), 3, (0, 255, 255), 2)
+    image = cv2.circle(image, (cx, cy), 2, (0, 255, 255), 1)
     return image
 
 # Plot signal
@@ -75,10 +181,10 @@ def draw_response_type(image, valid_response):
     width = image.shape[1]
     height = image.shape[1]
     font = cv2.FONT_HERSHEY_SIMPLEX
-    size = 2
-    pos = (int(width/2)-size*10,int(height/2)+size*10)
-    thickness = 3
-    line_type = 2
+    size = 1
+    pos = (5,25)
+    thickness = 2
+    line_type = 1
     if valid_response:
         color = (0,255,0)
         image = cv2.putText(image,'O', pos, font, size, color, thickness, line_type)
