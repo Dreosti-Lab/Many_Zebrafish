@@ -138,7 +138,7 @@ for experiment in experiments:
             if num_valid == 0:
                 continue
             response_probability = num_responses/num_valid
-            control_mean_single.append([response_probability, np.mean(magnitudes), np.mean(distances), np.mean(np.abs(turnings))])
+            control_mean_single.append([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
 
             # Responses to paired pulse stimulus
             num_valid = 0
@@ -146,22 +146,27 @@ for experiment in experiments:
             magnitudes = []
             distances = []
             turnings = []
-            for i, pulse in enumerate(second_pulses):
+            for i, pair in enumerate(paired_pulses):
                 response = paired_responses[:,:,i]
+                pre_offset = pair[1] - pair[0]
                 is_valid = MZB.validate_response(response)
                 if is_valid:
-                    metrics = MZB.measure_response(response, 50)
-                    is_response = MZB.classify_response(metrics)
+                    first_metrics = MZB.measure_response(response, 50-pre_offset)
+                    is_first_response = MZB.classify_response(first_metrics)
+                    if is_first_response:
+                        continue
                     num_valid += 1
-                    magnitudes.append(metrics['magnitude'])
-                    distances.append(metrics['distance'])
-                    turnings.append(metrics['turning'])
-                    if is_response:
+                    second_metrics = MZB.measure_response(response, 50)
+                    is_second_response = MZB.classify_response(second_metrics)
+                    magnitudes.append(second_metrics['magnitude'])
+                    distances.append(second_metrics['distance'])
+                    turnings.append(second_metrics['turning'])
+                    if is_second_response:
                         num_responses += 1
             if num_valid == 0:
                 continue
             response_probability = num_responses/num_valid
-            control_mean_paired.append([response_probability, np.mean(magnitudes), np.mean(distances), np.mean(np.abs(turnings))])
+            control_mean_paired.append([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
 
         # Analyse test responses
         test_paths = glob.glob(tests_folder+'/*.npz')
@@ -194,7 +199,7 @@ for experiment in experiments:
             if num_valid == 0:
                 continue
             response_probability = num_responses/num_valid
-            test_mean_single.append([response_probability, np.mean(magnitudes), np.mean(distances), np.mean(np.abs(turnings))])
+            test_mean_single.append([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
 
             # Responses to paired pulse stimulus
             num_valid = 0
@@ -202,35 +207,40 @@ for experiment in experiments:
             magnitudes = []
             distances = []
             turnings = []
-            for i, pulse in enumerate(second_pulses):
+            for i, pair in enumerate(paired_pulses):
                 response = paired_responses[:,:,i]
+                pre_offset = pair[1] - pair[0]
                 is_valid = MZB.validate_response(response)
                 if is_valid:
-                    metrics = MZB.measure_response(response, 50)
-                    is_response = MZB.classify_response(metrics)
+                    first_metrics = MZB.measure_response(response, 50-pre_offset)
+                    is_first_response = MZB.classify_response(first_metrics)
+                    if is_first_response:
+                        continue
                     num_valid += 1
-                    magnitudes.append(metrics['magnitude'])
-                    distances.append(metrics['distance'])
-                    turnings.append(metrics['turning'])
-                    if is_response:
+                    second_metrics = MZB.measure_response(response, 50)
+                    is_second_response = MZB.classify_response(second_metrics)
+                    magnitudes.append(second_metrics['magnitude'])
+                    distances.append(second_metrics['distance'])
+                    turnings.append(second_metrics['turning'])
+                    if is_second_response:
                         num_responses += 1
             if num_valid == 0:
                 continue
             response_probability = num_responses/num_valid
-            test_mean_paired.append([response_probability, np.mean(magnitudes), np.mean(distances), np.mean(np.abs(turnings))])
+            test_mean_paired.append([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
 
     # Summarize Controls
     control_mean_single = np.array(control_mean_single)
     control_mean_paired = np.array(control_mean_paired)
-    average_control_mean_single = np.mean(control_mean_single, axis=0)
-    average_control_mean_paired = np.mean(control_mean_paired, axis=0)
+    average_control_mean_single = np.nanmean(control_mean_single, axis=0)
+    average_control_mean_paired = np.nanmean(control_mean_paired, axis=0)
     control_ppi = (average_control_mean_single[0] - average_control_mean_paired[0]) * 100.0
 
     # Summarize Controls
     test_mean_single = np.array(test_mean_single)
     test_mean_paired = np.array(test_mean_paired)
-    average_test_mean_single = np.mean(test_mean_single, axis=0)
-    average_test_mean_paired = np.mean(test_mean_paired, axis=0)
+    average_test_mean_single = np.nanmean(test_mean_single, axis=0)
+    average_test_mean_paired = np.nanmean(test_mean_paired, axis=0)
     test_ppi = (average_test_mean_single[0] - average_test_mean_paired[0]) * 100.0
 
     # Plot summary

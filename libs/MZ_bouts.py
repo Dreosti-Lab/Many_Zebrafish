@@ -85,7 +85,8 @@ def validate_response(response):
 # Is this response a response to the stimulus?
 def classify_response(metrics):
     if (metrics['distance'] > 5) or (np.abs(metrics['turning']) > 15):
-        return True
+        if(metrics['latency'] < 10):
+            return True
     return False
 
 # Count heading flips
