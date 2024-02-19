@@ -46,7 +46,8 @@ experiments = ['Akap11',
                'Nr3c2',
                'Sp4',
                'Trio',
-               'Xpo7']
+               'Xpo7'
+               ]
 
 # Extract experiment behaviour
 for experiment in experiments:

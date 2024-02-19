@@ -135,10 +135,12 @@ for experiment in experiments:
                     turnings.append(metrics['turning'])
                     if is_response:
                         num_responses += 1
-            if num_valid == 0:
-                continue
-            response_probability = num_responses/num_valid
-            control_mean_single.append([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
+            if num_valid < 2:
+                invalid_single = True
+            else:
+                invalid_single = False
+                response_probability = num_responses/num_valid
+                mean_single = ([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
 
             # Responses to paired pulse stimulus
             num_valid = 0
@@ -163,10 +165,17 @@ for experiment in experiments:
                     turnings.append(second_metrics['turning'])
                     if is_second_response:
                         num_responses += 1
-            if num_valid == 0:
-                continue
-            response_probability = num_responses/num_valid
-            control_mean_paired.append([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
+            if num_valid < 2:
+                invalid_paired = True
+            else:
+                invalid_paired = False
+                response_probability = num_responses/num_valid
+                mean_paired = ([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
+
+            # Accumulate controls
+            if (not invalid_single) and (not invalid_paired):
+                control_mean_single.append(mean_single)
+                control_mean_paired.append(mean_paired)
 
         # Analyse test responses
         test_paths = glob.glob(tests_folder+'/*.npz')
@@ -196,10 +205,12 @@ for experiment in experiments:
                     turnings.append(metrics['turning'])
                     if is_response:
                         num_responses += 1
-            if num_valid == 0:
-                continue
-            response_probability = num_responses/num_valid
-            test_mean_single.append([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
+            if num_valid < 2:
+                invalid_single = True
+            else:
+                invalid_single = False
+                response_probability = num_responses/num_valid
+                mean_single = ([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
 
             # Responses to paired pulse stimulus
             num_valid = 0
@@ -224,10 +235,17 @@ for experiment in experiments:
                     turnings.append(second_metrics['turning'])
                     if is_second_response:
                         num_responses += 1
-            if num_valid == 0:
-                continue
-            response_probability = num_responses/num_valid
-            test_mean_paired.append([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
+            if num_valid < 2:
+                invalid_paired = True
+            else:
+                invalid_paired = False
+                response_probability = num_responses/num_valid
+                mean_paired = ([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
+
+            # Accumulate tests
+            if (not invalid_single) and (not invalid_paired):
+                test_mean_single.append(mean_single)
+                test_mean_paired.append(mean_paired)
 
     # Summarize Controls
     control_mean_single = np.array(control_mean_single)
@@ -251,10 +269,13 @@ for experiment in experiments:
     for i in range(4):
         plt.subplot(2,4,i+1)
         plt.xlabel(f'Δ{(average_control_mean_single[i] - average_control_mean_paired[i]):.2f}')
+        plt.plot([1,2], [control_mean_single[:,i], control_mean_paired[:,i]], color = [0.5,0.5,1.0,0.1])
         plt.boxplot([control_mean_single[:,i], control_mean_paired[:,i]], showmeans = True, meanline = True, notch=True)
     for i in range(4):
         plt.subplot(2,4,i+5)
         plt.xlabel(f'Δ{(average_test_mean_single[i] - average_test_mean_paired[i]):.2f}')
+        num_fish = len(control_mean_single[:,i])
+        plt.plot([1,2], [test_mean_single[:,i], test_mean_paired[:,i]], color = [0.5,0.5,1.0,0.1])
         plt.boxplot([test_mean_single[:,i], test_mean_paired[:,i]], showmeans = True, meanline = True, notch=True)
     plt.savefig(summary_figure_path, dpi=180)
     plt.close()

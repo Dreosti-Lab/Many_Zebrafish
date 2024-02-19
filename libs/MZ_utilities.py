@@ -97,13 +97,16 @@ def parse_summary_PPI(summary_path, gene_name):
     # Find plates
     plates = []
     paths = []
+    last_plate = -1
     for i, cell in enumerate(gene_cells):
         gene = cell[0].value
         if gene == gene_name:
-            plates.append(plate_cells[i][0].value)
-            paths.append('/' + path_cells[i][0].value)
-    plates = list(set(plates))
-    paths = list(set(paths))
+            plate = plate_cells[i][0].value
+            path = '/' + path_cells[i][0].value
+            if plate != last_plate:
+                plates.append(plate)
+                paths.append(path)
+                last_plate = plate
 
     # Extract valid controls and test fish
     all_controls = []
