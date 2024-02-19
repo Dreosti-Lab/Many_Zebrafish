@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import time
+import glob
 import cv2
 
 # Import local modules
@@ -347,4 +348,51 @@ def track_fish(frame, max_background_rate, fish):
 
         # Return feedback
         return threshold
+
+# Make mosaic
+def make_mosaic(clip_folder, clip_size, num_rows, num_cols, num_frames, output_path):
+    mosaic_width = clip_size * num_cols
+    mosaic_height = clip_size * num_rows
+    num_clips = num_rows * num_cols
+
+    # Find clips
+    clip_paths = glob.glob(clip_folder + '/*.avi')
+
+    # Create mosaic
+    mosaic = np.zeros((mosaic_height, mosaic_width, 3, num_frames), dtype=np.uint8)
+
+    # Create random clip list
+    clip_list = np.random.permutation(np.arange(len(clip_paths), dtype=np.int32))[:num_clips]
+
+    # Load clips
+    clips = []
+    for c in clip_list:
+        clip_path = clip_paths[c]
+        clip = np.zeros((int(clip_size), int(clip_size), 3, int(num_frames)), dtype=np.uint8)
+        vid = cv2.VideoCapture(clip_path)
+        for f in range(num_frames):
+            ret, frame = vid.read()
+            clip[:,:,:,f] = frame
+        clips.append(clip)
+        vid.release()
+
+    # Build mosaic
+    count = 0
+    for r in range(num_rows):
+        for c in range(num_cols):
+            x_off = c * clip_size
+            y_off = r * clip_size
+            clip = clips[count]
+            mosaic[y_off:(y_off+clip_size), x_off:(x_off+clip_size), :, :] = clip
+            count = count + 1
+    
+    # Save mosaic
+    fourcc = cv2.VideoWriter_fourcc('F','M','P','4')
+    video = cv2.VideoWriter(output_path, fourcc, 30, (1920,1080))
+    for f in range(num_frames):
+        frame = mosaic[:,:,:,f]
+        resized = cv2.resize(frame, (1920,1080))
+        ret = video.write(resized)
+    ret = video.release()
+
 # FIN
