@@ -31,6 +31,7 @@ source MZPY/bin/activate
 
 ## Python Package Requirements
 - numpy
+- scipy
 - matplotlib
 - opencv-python
 - scikit-image

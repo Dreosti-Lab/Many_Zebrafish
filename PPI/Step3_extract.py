@@ -34,97 +34,105 @@ importlib.reload(MZU)
 #----------------------------------------------------------
 
 # Specify summary path
-summary_path = "/home/kampff/data/Schizophrenia_data/Sumamry_Info.xlsx"
+summary_path = base_path + "/Sumamry_Info.xlsx"
 
 # Specify experiment abbreviation
-experiment = 'Akap11'
-#experiment = 'Cacna1g'
-#experiment = 'Gria3'
-#experiment = 'Grin2a'
-#experiment = 'Hcn4'
-#experiment = 'Herc1'
-#experiment = 'Nr3c2'
-#experiment = 'Sp4'
-#experiment = 'Trio'
-#experiment = 'Xpo7'
-plates, paths, controls, tests = MZU.parse_summary_PPI(summary_path, experiment)
+experiments = ['Akap11', 
+               'Cacna1g', 
+               'Gria3', 
+               'Grin2a',
+               'Hcn4',
+               'Herc1',
+               'Nr3c2',
+               'Sp4',
+               'Trio',
+               'Xpo7']
 
-# Set list of video paths
-path_list = paths
-#path_list.remove(path_list[1])
+# Extract experiment behaviour
+for experiment in experiments:
+    plates, paths, controls, tests = MZU.parse_summary_PPI(summary_path, experiment)
 
-# Analyse behaviour for video paths (*.avi) in path_list
-control_single_responses = np.empty((8,200,0))
-test_single_responses = np.empty((8,200,0))
-control_paired_responses = np.empty((8,200,0))
-test_paired_responses = np.empty((8,200,0))
-for p, path in enumerate(path_list):
-    print(path)
+    # Set list of video paths
+    path_list = paths
 
-    # Specify Paths
-    video_path = base_path + path
-    output_folder = os.path.dirname(video_path) + '/analysis'
-    responses_folder = output_folder + '/responses'
-    controls_folder = responses_folder + '/controls'
-    tests_folder = responses_folder + '/tests'
+    # Analyse behaviour for video paths (*.avi) in path_list
+    control_single_responses = np.empty((8,200,0))
+    test_single_responses = np.empty((8,200,0))
+    control_paired_responses = np.empty((8,200,0))
+    test_paired_responses = np.empty((8,200,0))
+    for p, path in enumerate(path_list):
+        print(path)
 
-    # Empty responses folder
-    MZU.clear_folder(responses_folder)
-    MZU.create_folder(controls_folder)
-    MZU.create_folder(tests_folder)
+        # Ignore bad paths (should fix in summary file!)
+        if(path == '/gria3/231219/231219_grin2_PPI_Exp0.avi'): # Corrupt movie
+            continue
+        if(path == '/nr3c2/231121/Exp0/231121_nr3c2_PPI_Exp0.avi'): # Bad LED (?)
+            continue
 
-    # Create plate
-    name = path.split('/')[-1][:-4]
-    plate = MZP.Plate(name)
+        # Specify Paths
+        video_path = base_path + '/PPI' + path
+        output_folder = os.path.dirname(video_path) + '/analysis'
+        responses_folder = output_folder + '/responses'
+        controls_folder = responses_folder + '/controls'
+        tests_folder = responses_folder + '/tests'
 
-    # Load plate
-    print(f"Loading plate data...{p} of {len(path_list)}")
-    plate.load(output_folder)
+        # Empty responses folder
+        MZU.clear_folder(responses_folder)
+        MZU.create_folder(controls_folder)
+        MZU.create_folder(tests_folder)
 
-    # Extract stimulus times and types
-    print("Extracting pulses...")
-    led_intensity = plate.intensity
-    single_pulses, paired_pulses = MZU.extract_ppi_stimuli(led_intensity)
-    second_pulses = [x[1] for x in paired_pulses]
-    np.savez(responses_folder + '/pulses.npz', single_pulses=single_pulses, paired_pulses=paired_pulses)
+        # Create plate
+        name = path.split('/')[-1][:-4]
+        plate = MZP.Plate(name)
 
-    # Plot LED
-    print("Plotting LED...")
-    fig = plt.figure(figsize=(10, 8))
-    plt.title('LED-based Pulse Detection')
-    for i,pulse in enumerate(single_pulses):
-        plt.subplot(2,8,i+1)
-        plt.plot(led_intensity[(pulse-100):(pulse+100)])
-        plt.plot(100, np.max(led_intensity), 'r+')
-        plt.yticks([])
-    for i,pair in enumerate(paired_pulses):
-        plt.subplot(2,8,i+9)
-        plt.plot(led_intensity[(pair[0]-100):(pair[0]+100)])
-        plt.plot(100, np.max(led_intensity), 'g+')
-        plt.plot((pair[1]-pair[0])+100, np.max(led_intensity), 'b+')
-        plt.yticks([])
-    plt.savefig(output_folder + f'/led_intensity_plate_{plates[p]}.png', dpi=180)
-    plt.cla()
-    plt.close()
+        # Load plate
+        print(f"Loading plate data...{p} of {len(path_list)}")
+        plate.load(output_folder)
 
-    # Extract PPI responses
-    pre_frames = 50
-    post_frames = 100
+        # Extract stimulus times and types
+        print("Extracting pulses...")
+        led_intensity = plate.intensity
+        single_pulses, paired_pulses = MZU.extract_ppi_stimuli(led_intensity)
+        second_pulses = [x[1] for x in paired_pulses]
+        np.savez(responses_folder + '/pulses.npz', single_pulses=single_pulses, paired_pulses=paired_pulses)
 
-    # Extract and save all control responses
-    for c in controls[p]:
-        behaviour = MZU.extract_behaviour(plate, c-1)
-        single_responses = MZU.extract_responses(behaviour, single_pulses, pre_frames, post_frames)
-        paired_responses = MZU.extract_responses(behaviour, second_pulses, pre_frames, post_frames)
-        control_path = controls_folder + f'/control_{c}_plate_{plates[p]}.npz'
-        np.savez(control_path, single_responses=single_responses, paired_responses=paired_responses)
+        # Plot LED
+        print("Plotting LED...")
+        fig = plt.figure(figsize=(10, 8))
+        plt.title('LED-based Pulse Detection')
+        for i,pulse in enumerate(single_pulses):
+            plt.subplot(2,8,i+1)
+            plt.plot(led_intensity[(pulse-100):(pulse+100)])
+            plt.plot(100, np.max(led_intensity), 'r+')
+            plt.yticks([])
+        for i,pair in enumerate(paired_pulses):
+            plt.subplot(2,8,i+9)
+            plt.plot(led_intensity[(pair[0]-100):(pair[0]+100)])
+            plt.plot(100, np.max(led_intensity), 'g+')
+            plt.plot((pair[1]-pair[0])+100, np.max(led_intensity), 'b+')
+            plt.yticks([])
+        plt.savefig(output_folder + f'/led_intensity_plate_{plates[p]}.png', dpi=180)
+        plt.cla()
+        plt.close()
 
-    # Extract and save all test responses
-    for t in tests[p]:
-        behaviour = MZU.extract_behaviour(plate, t-1)
-        single_responses = MZU.extract_responses(behaviour, single_pulses, pre_frames, post_frames)
-        paired_responses = MZU.extract_responses(behaviour, second_pulses, pre_frames, post_frames)
-        test_path = tests_folder + f'/test_{t}_plate_{plates[p]}.npz'
-        np.savez(test_path, single_responses=single_responses, paired_responses=paired_responses)
+        # Extract PPI responses
+        pre_frames = 50
+        post_frames = 100
+
+        # Extract and save all control responses
+        for c in controls[p]:
+            behaviour = MZU.extract_behaviour(plate, c-1)
+            single_responses = MZU.extract_responses(behaviour, single_pulses, pre_frames, post_frames)
+            paired_responses = MZU.extract_responses(behaviour, second_pulses, pre_frames, post_frames)
+            control_path = controls_folder + f'/control_{c}_plate_{plates[p]}.npz'
+            np.savez(control_path, single_responses=single_responses, paired_responses=paired_responses)
+
+        # Extract and save all test responses
+        for t in tests[p]:
+            behaviour = MZU.extract_behaviour(plate, t-1)
+            single_responses = MZU.extract_responses(behaviour, single_pulses, pre_frames, post_frames)
+            paired_responses = MZU.extract_responses(behaviour, second_pulses, pre_frames, post_frames)
+            test_path = tests_folder + f'/test_{t}_plate_{plates[p]}.npz'
+            np.savez(test_path, single_responses=single_responses, paired_responses=paired_responses)
 
 #FIN

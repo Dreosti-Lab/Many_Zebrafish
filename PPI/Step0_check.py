@@ -32,7 +32,7 @@ importlib.reload(MZU)
 #----------------------------------------------------------
 
 # Load list of video paths
-path_list_path = base_path + "/path_list.txt"
+path_list_path = base_path + "/PPI/path_list.txt"
 path_list = MZU.load_path_list(path_list_path)
 
 # Process summary images for video paths (*.avi) in path_list

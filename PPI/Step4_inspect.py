@@ -38,11 +38,11 @@ importlib.reload(MZU)
 #----------------------------------------------------------
 
 # Specify summary path
-summary_path = "/home/kampff/data/Schizophrenia_data/Sumamry_Info.xlsx"
+summary_path = base_path + "/Sumamry_Info.xlsx"
 
 # Specify experiment abbreviation
-experiment = 'Akap11'
-#experiment = 'Cacna1g'
+#experiment = 'Akap11'
+experiment = 'Cacna1g'
 #experiment = 'Gria3'
 #experiment = 'Grin2a'
 #experiment = 'Hcn4'
@@ -61,7 +61,7 @@ for p, path in enumerate(path_list):
     print(path)
 
     # Create Paths
-    video_path = base_path + path
+    video_path = base_path + '/PPI' + path
     output_folder = os.path.dirname(video_path) + '/analysis'
     responses_folder = output_folder + '/responses'
     controls_folder = responses_folder + '/controls'
@@ -138,7 +138,10 @@ for p, path in enumerate(path_list):
         for i, pulse in enumerate(second_pulses):
             response = paired_responses[:,:,i]
             clip_path = controls_inspect_folder + f'/{name}_paired_response_{i}.avi'
-            MZB.inspect_bout(paired_responses_frames[i], (fish.ul, fish.lr), response, clip_path)
+            MZB.inspect_response(paired_responses_frames[i], (fish.ul, fish.lr), response, clip_path)
             print(f' - {name}: {i} - pp')
 
 #FIN
+
+
+#control_26_plate_8_paired_response_6
