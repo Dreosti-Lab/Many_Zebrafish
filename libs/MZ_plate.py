@@ -17,11 +17,14 @@ from MZ_fish import Fish
 
 # Plate Class
 class Plate:
-    def __init__(self, _name):
+    def __init__(self, _name, _rows=8, _cols=12):
         self.name = _name
+        self.rows = _rows
+        self.cols = _cols
+        self.num_wells = _rows * _cols
         self.intensity = []
         self.wells = []
-        for i in range(96):
+        for i in range(self.num_wells):
             self.wells.append(Fish())
         return
 
@@ -44,20 +47,20 @@ class Plate:
 
         # Prepare numpy arrays
         intensity = np.array(self.intensity)
-        xs = np.empty(96, object)
-        ys = np.empty(96, object)
-        headings = np.empty(96, object)
-        areas = np.empty(96, object)
-        motions = np.empty(96, object)
-        threshold_backgrounds = np.empty(96, object)
-        threshold_motions = np.empty(96, object)
-        backgrounds = np.empty(96, object)
-        stacks = np.empty(96, object)
-        stack_sizes = np.empty(96, object)
-        stack_counts = np.empty(96, object)
-        since_stack_updates = np.empty(96, object)
-        previouses = np.empty(96, object)
-        previous_motions = np.empty(96, object)
+        xs = np.empty(self.num_wells, object)
+        ys = np.empty(self.num_wells, object)
+        headings = np.empty(self.num_wells, object)
+        areas = np.empty(self.num_wells, object)
+        motions = np.empty(self.num_wells, object)
+        threshold_backgrounds = np.empty(self.num_wells, object)
+        threshold_motions = np.empty(self.num_wells, object)
+        backgrounds = np.empty(self.num_wells, object)
+        stacks = np.empty(self.num_wells, object)
+        stack_sizes = np.empty(self.num_wells, object)
+        stack_counts = np.empty(self.num_wells, object)
+        since_stack_updates = np.empty(self.num_wells, object)
+        previouses = np.empty(self.num_wells, object)
+        previous_motions = np.empty(self.num_wells, object)
         for i,fish in enumerate(self.wells):
             xs[i] = np.array(fish.x, dtype=np.float32)
             ys[i] = np.array(fish.y, dtype=np.float32)
