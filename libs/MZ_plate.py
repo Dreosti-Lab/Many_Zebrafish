@@ -141,9 +141,9 @@ class Plate:
 
         return
 
-    def init_backgrounds(self, background):
+    def init_backgrounds(self, background, background_divisor=15, motion_divisor=20):
         for fish in self.wells:
-            fish.init_background(background)
+            fish.init_background(background, background_divisor=background_divisor, motion_divisor=motion_divisor)
         return
 
     def find_rois(self, image_path, blur, output_folder):
@@ -206,8 +206,8 @@ class Plate:
 
         # Draw ROI intersections
         for fish in self.wells:
-            display = cv2.circle(display, fish.ul, 3, (0,255,0), 1)
-            display = cv2.circle(display, fish.lr, 3, (0,255,0), 1)
+            display = cv2.circle(display, fish.roi_ul, 3, (0,255,0), 1)
+            display = cv2.circle(display, fish.roi_lr, 3, (0,255,0), 1)
 
         # Store ROI image
         ret = cv2.imwrite(output_folder + r'/roi.png', display)
@@ -227,8 +227,14 @@ class Plate:
     def save_rois(self, roi_path):
         roi_file = open(roi_path, 'w')
         for fish in self.wells:
-            ret = roi_file.write(f'{fish.ul[0]},{fish.ul[1]},{fish.lr[0]},{fish.lr[1]}\n')
+            ret = roi_file.write(f'{fish.roi_ul[0]},{fish.roi_ul[1]},{fish.roi_lr[0]},{fish.roi_lr[1]}\n')
         return
+
+    def draw_rois(self, image, output_folder):
+        display = np.copy(image)
+        for well in self.wells:
+            cv2.rectangle(display, well.roi_ul, well.roi_lr, (0, 255, 255), 2, 1)
+        ret = cv2.imwrite(output_folder + r'/roi_overlay.png', display)
 
 # Utilities for working with 96-well plate experiments
 

@@ -114,7 +114,7 @@ def generate_difference_image(video_path, stack_size, step_frames, output_folder
     return
 
 # Track fish within ROIs
-def fish_tracking_roi(video_path, plate, intensity_roi, start_frame=0, end_frame=-1, max_background_rate=400, validate=False, validation_folder=None):
+def fish_tracking_roi(video_path, plate, intensity_roi, start_frame=0, end_frame=-1, max_background_rate=400, validate=False, validation_folder=None, report_interval = 1000):
     # If validating, then create validation folder
     if(validate):
         if not os.path.exists(validation_folder):
@@ -138,14 +138,13 @@ def fish_tracking_roi(video_path, plate, intensity_roi, start_frame=0, end_frame
     # Set "previous" crops for each fish
     for fish in plate.wells:
         # Crop ROI
-        crop = get_ROI_crop(frame, (fish.ul, fish.lr))
+        crop = get_ROI_crop(frame, (fish.roi_ul, fish.roi_lr))
         fish.previous = np.copy(crop)
 
     # Reset video
     vid.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
     
     # Video Loop
-    report_interval = 1000
     start_time = time.time()
     for f in range(start_frame, end_frame+1, 1):
 
@@ -164,7 +163,7 @@ def fish_tracking_roi(video_path, plate, intensity_roi, start_frame=0, end_frame
             feedback = track_fish(frame, max_background_rate, fish)
             # -RV-
             if report and validate:
-                display = set_ROI_crop(display, (fish.ul, fish.lr), feedback)
+                display = set_ROI_crop(display, (fish.roi_ul, fish.roi_lr), feedback)
         
         # Process LED
         crop = get_ROI_crop(frame, intensity_roi)
@@ -253,7 +252,7 @@ def get_largest_contour(contours):
 # Fish tracking algorithm
 def track_fish(frame, max_background_rate, fish):
         # Crop ROI
-        crop = get_ROI_crop(frame, (fish.ul, fish.lr))
+        crop = get_ROI_crop(frame, (fish.roi_ul, fish.roi_lr))
 
         # Difference from background (fish always darker)
         subtraction = cv2.subtract(fish.background, crop)
@@ -270,7 +269,7 @@ def track_fish(frame, max_background_rate, fish):
 
         # If no contours, continue
         if len(contours) == 0:
-            fish.add_behaviour(fish.ul[0], fish.ul[1], 0.0, -1.0, 0.0)
+            fish.add_behaviour(fish.roi_ul[0], fish.roi_ul[1], 0.0, -1.0, 0.0)
             return threshold
 
         # Get largest contour
@@ -278,7 +277,7 @@ def track_fish(frame, max_background_rate, fish):
 
         # If no area, continue
         if area == 0.0:
-            fish.add_behaviour(fish.ul[0], fish.ul[1], 0.0, -1.0, 0.0)
+            fish.add_behaviour(fish.roi_ul[0], fish.roi_ul[1], 0.0, -1.0, 0.0)
             return threshold
         
         # Create Binary Mask Image
@@ -344,7 +343,7 @@ def track_fish(frame, max_background_rate, fish):
             heading = math.atan2((vy), (-vx)) * (360.0/(2*np.pi))
 
         # Store
-        fish.add_behaviour(fish.ul[0] + cx, fish.ul[1] + cy, heading, area, motion)
+        fish.add_behaviour(fish.roi_ul[0] + cx, fish.roi_ul[1] + cy, heading, area, motion)
 
         # Return feedback
         return threshold

@@ -31,21 +31,21 @@ class Fish:
         return
 
     def set_roi(self, _ul, _lr):
-        self.ul = (int(round(_ul[0])), int(round(_ul[1])))   # ROI upper right corner
-        self.lr = (int(round(_lr[0])), int(round(_lr[1])))   # ROI lower right corner
-        self.width = self.lr[0] - self.ul[0]
-        self.height = self.lr[1] - self.ul[1]
+        self.roi_ul = (int(round(_ul[0])), int(round(_ul[1])))   # ROI upper right corner
+        self.roi_lr = (int(round(_lr[0])), int(round(_lr[1])))   # ROI lower right corner
+        self.width = self.roi_lr[0] - self.roi_ul[0]
+        self.height = self.roi_lr[1] - self.roi_ul[1]
         self.background = np.zeros((self.width, self.height))
         return
 
-    def init_background(self, image):
-        r1 = self.ul[1]
-        r2 = self.lr[1]
-        c1 = self.ul[0]
-        c2 = self.lr[0]
+    def init_background(self, image, background_divisor=15, motion_divisor=20):
+        r1 = self.roi_ul[1]
+        r2 = self.roi_lr[1]
+        c1 = self.roi_ul[0]
+        c2 = self.roi_lr[0]
         self.background = image[r1:r2, c1:c2]
-        self.threshold_background = np.median(self.background[:])/15
-        self.threshold_motion = np.median(self.background[:])/20
+        self.threshold_background = np.median(self.background[:])/background_divisor
+        self.threshold_motion = np.median(self.background[:])/motion_divisor
         self.stack = np.zeros((self.height, self.width, self.stack_size), dtype = np.uint8)
         for i in range(self.stack_size):
             self.stack[:,:,i] = self.background
