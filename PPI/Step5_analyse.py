@@ -59,10 +59,16 @@ for experiment in experiments:
     path_list = paths
 
     # Accumulators
-    control_mean_single = []
-    control_mean_paired = []
-    test_mean_single = []
-    test_mean_paired = []
+    all_control_mean_single = []
+    all_control_mean_paired = []
+    all_test_mean_single = []
+    all_test_mean_paired = []
+
+    # Batch accumulators
+    batches_control_mean_single = []
+    batches_control_mean_paired = []
+    batches_test_mean_single = []
+    batches_test_mean_paired = []
 
     # Analyse behaviour for video paths (*.avi) in path_list
     for p, path in enumerate(path_list):
@@ -107,6 +113,12 @@ for experiment in experiments:
         pre_frames = 50
         post_frames = 100
 
+        # Accumulators
+        control_mean_single = []
+        control_mean_paired = []
+        test_mean_single = []
+        test_mean_paired = []
+
         # Analyse control responses
         control_paths = glob.glob(controls_folder+'/*.npz')
         for path in control_paths:
@@ -130,7 +142,7 @@ for experiment in experiments:
                     metrics = MZB.measure_response(response, 50)
                     is_response = MZB.classify_response(metrics)
                     num_valid += 1
-                    magnitudes.append(metrics['magnitude'])
+                    magnitudes.append(metrics['magnitude']/1000)
                     distances.append(metrics['distance'])
                     turnings.append(metrics['turning'])
                     if is_response:
@@ -160,7 +172,7 @@ for experiment in experiments:
                     num_valid += 1
                     second_metrics = MZB.measure_response(response, 50)
                     is_second_response = MZB.classify_response(second_metrics)
-                    magnitudes.append(second_metrics['magnitude'])
+                    magnitudes.append(second_metrics['magnitude']/1000)
                     distances.append(second_metrics['distance'])
                     turnings.append(second_metrics['turning'])
                     if is_second_response:
@@ -176,6 +188,8 @@ for experiment in experiments:
             if (not invalid_single) and (not invalid_paired):
                 control_mean_single.append(mean_single)
                 control_mean_paired.append(mean_paired)
+                all_control_mean_single.append(mean_single)
+                all_control_mean_paired.append(mean_paired)
 
         # Analyse test responses
         test_paths = glob.glob(tests_folder+'/*.npz')
@@ -200,7 +214,7 @@ for experiment in experiments:
                     metrics = MZB.measure_response(response, 50)
                     is_response = MZB.classify_response(metrics)
                     num_valid += 1
-                    magnitudes.append(metrics['magnitude'])
+                    magnitudes.append(metrics['magnitude']/1000)
                     distances.append(metrics['distance'])
                     turnings.append(metrics['turning'])
                     if is_response:
@@ -230,7 +244,7 @@ for experiment in experiments:
                     num_valid += 1
                     second_metrics = MZB.measure_response(response, 50)
                     is_second_response = MZB.classify_response(second_metrics)
-                    magnitudes.append(second_metrics['magnitude'])
+                    magnitudes.append(second_metrics['magnitude']/1000)
                     distances.append(second_metrics['distance'])
                     turnings.append(second_metrics['turning'])
                     if is_second_response:
@@ -246,37 +260,85 @@ for experiment in experiments:
             if (not invalid_single) and (not invalid_paired):
                 test_mean_single.append(mean_single)
                 test_mean_paired.append(mean_paired)
+                all_test_mean_single.append(mean_single)
+                all_test_mean_paired.append(mean_paired)
 
-    # Summarize Controls
-    control_mean_single = np.array(control_mean_single)
-    control_mean_paired = np.array(control_mean_paired)
-    average_control_mean_single = np.nanmean(control_mean_single, axis=0)
-    average_control_mean_paired = np.nanmean(control_mean_paired, axis=0)
+        # Accumulate batches
+        if (len(control_mean_single) > 0) and (len(control_mean_paired) > 0) and (len(test_mean_single) > 0) and (len(test_mean_paired) > 0):
+            batches_control_mean_single.append(control_mean_single)
+            batches_control_mean_paired.append(control_mean_paired)
+            batches_test_mean_single.append(test_mean_single)
+            batches_test_mean_paired.append(test_mean_paired)
+
+    # Summarize ALL responses
+    control_mean_single = np.array(all_control_mean_single)
+    control_mean_paired = np.array(all_control_mean_paired)
+    average_control_mean_single = np.nanmean(all_control_mean_single, axis=0)
+    average_control_mean_paired = np.nanmean(all_control_mean_paired, axis=0)
     control_ppi = (average_control_mean_single[0] - average_control_mean_paired[0]) * 100.0
-
-    # Summarize Controls
-    test_mean_single = np.array(test_mean_single)
-    test_mean_paired = np.array(test_mean_paired)
-    average_test_mean_single = np.nanmean(test_mean_single, axis=0)
-    average_test_mean_paired = np.nanmean(test_mean_paired, axis=0)
+    test_mean_single = np.array(all_test_mean_single)
+    test_mean_paired = np.array(all_test_mean_paired)
+    average_test_mean_single = np.nanmean(all_test_mean_single, axis=0)
+    average_test_mean_paired = np.nanmean(all_test_mean_paired, axis=0)
     test_ppi = (average_test_mean_single[0] - average_test_mean_paired[0]) * 100.0
 
     # Plot summary
     summary_figure_path = experiment_analysis_folder + f'/Summary_{experiment}.png'
     fig = plt.figure(figsize=(18, 10))
-    plt.title(f'{experiment}: Control PPI ({control_ppi:.1f}%), Test PPI ({test_ppi:.1f}%)')
+    plt.suptitle(f'{experiment}: Control PPI ({control_ppi:.1f}%), Test PPI ({test_ppi:.1f}%)')
     plt.axis('off')
+    labels = ['Response Probability', 'Integrated Motion', 'Net Distance', 'Net Turning Angle']
     for i in range(4):
         plt.subplot(2,4,i+1)
         plt.xlabel(f'Δ{(average_control_mean_single[i] - average_control_mean_paired[i]):.2f}')
+        plt.ylabel(labels[i])
         plt.plot([1,2], [control_mean_single[:,i], control_mean_paired[:,i]], color = [0.5,0.5,1.0,0.1])
-        plt.boxplot([control_mean_single[:,i], control_mean_paired[:,i]], showmeans = True, meanline = True, notch=True)
+        plt.boxplot([control_mean_single[:,i], control_mean_paired[:,i]], showmeans = True, meanline = True, notch=True, labels=['Single', 'Paired'])
     for i in range(4):
         plt.subplot(2,4,i+5)
         plt.xlabel(f'Δ{(average_test_mean_single[i] - average_test_mean_paired[i]):.2f}')
+        plt.ylabel(labels[i])
         num_fish = len(control_mean_single[:,i])
         plt.plot([1,2], [test_mean_single[:,i], test_mean_paired[:,i]], color = [0.5,0.5,1.0,0.1])
-        plt.boxplot([test_mean_single[:,i], test_mean_paired[:,i]], showmeans = True, meanline = True, notch=True)
+        plt.boxplot([test_mean_single[:,i], test_mean_paired[:,i]], showmeans = True, meanline = True, notch=True, labels=['Single', 'Paired'])
+    plt.savefig(summary_figure_path, dpi=180)
+    plt.close()
+
+    # Summarize BATCHED responses
+    summary_figure_path = experiment_analysis_folder + f'/Summary_{experiment}_batched.png'
+    fig = plt.figure(figsize=(18, 10))
+    plt.axis('off')
+    labels = ['Response Probability', 'Integrated Motion', 'Net Distance', 'Net Turning Angle']
+    batch_count = 0
+    title = ''
+    for control_mean_single, control_mean_paired, test_mean_single, test_mean_paired in zip(batches_control_mean_single, batches_control_mean_paired, batches_test_mean_single, batches_test_mean_paired):
+        control_mean_single = np.array(control_mean_single)
+        control_mean_paired = np.array(control_mean_paired)
+        average_control_mean_single = np.nanmean(control_mean_single, axis=0)
+        average_control_mean_paired = np.nanmean(control_mean_paired, axis=0)
+        control_ppi = (average_control_mean_single[0] - average_control_mean_paired[0]) * 100.0
+        test_mean_single = np.array(test_mean_single)
+        test_mean_paired = np.array(test_mean_paired)
+        average_test_mean_single = np.nanmean(test_mean_single, axis=0)
+        average_test_mean_paired = np.nanmean(test_mean_paired, axis=0)
+        test_ppi = (average_test_mean_single[0] - average_test_mean_paired[0]) * 100.0
+        for i in range(4):
+            plt.subplot(2,4,i+1)
+            plt.xlabel(f'Δ{(average_control_mean_single[i] - average_control_mean_paired[i]):.2f}')
+            plt.ylabel(labels[i])
+            plt.plot([1,2], [control_mean_single[:,i], control_mean_paired[:,i]], alpha=0.1)
+            plt.plot([1,2], [average_control_mean_single[i], average_control_mean_paired[i]], linewidth=3)
+        for i in range(4):
+            plt.subplot(2,4,i+5)
+            plt.xlabel(f'Δ{(average_test_mean_single[i] - average_test_mean_paired[i]):.2f}')
+            plt.ylabel(labels[i])
+            num_fish = len(control_mean_single[:,i])
+            plt.plot([1,2], [test_mean_single[:,i], test_mean_paired[:,i]], alpha=0.1)
+            plt.plot([1,2], [average_test_mean_single[i], average_test_mean_paired[i]], linewidth=3)
+        plt.subplot(1,1,1)
+        title += f'Batch {batch_count}: CPPI {control_ppi:.1f}, TPPI {test_ppi:.1f}   '
+        batch_count += 1
+    plt.suptitle(f'{experiment}: {title}')
     plt.savefig(summary_figure_path, dpi=180)
     plt.close()
 
