@@ -42,9 +42,9 @@ summary_path = base_path + "/Sumamry_Info.xlsx"
 
 # Specify experiment abbreviation
 #experiment = 'Akap11'
-experiment = 'Cacna1g'
+#experiment = 'Cacna1g'
 #experiment = 'Gria3'
-#experiment = 'Grin2a'
+experiment = 'Grin2a'
 #experiment = 'Hcn4'
 #experiment = 'Herc1'
 #experiment = 'Nr3c2'
@@ -59,6 +59,12 @@ path_list = paths
 # Inspect behaviour for video paths (*.avi) in path_list
 for p, path in enumerate(path_list):
     print(path)
+
+    # Ignore bad paths (should fix in summary file!)
+    if(path == '/gria3/231219/231219_grin2_PPI_Exp0.avi'): # Corrupt movie
+        continue
+    if(path == '/nr3c2/231121/Exp0/231121_nr3c2_PPI_Exp0.avi'): # Bad LED (?)
+        continue
 
     # Create Paths
     video_path = base_path + '/PPI' + path
@@ -127,17 +133,41 @@ for p, path in enumerate(path_list):
         paired_responses = behaviour['paired_responses']
         fish = plate.wells[well_number-1]
         
-        ## Generate response video for each single pulse stimulus
-        #for i, pulse in enumerate(single_pulses):
-        #    response = single_responses[:,:,i]
-        #    clip_path = controls_inspect_folder + f'/{name}_single_response_{i}.avi'
-        #    MZB.inspect_bout(single_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, clip_path)
-        #    print(f' - {name}: {i} - sp')
+        # Generate response video for each single pulse stimulus
+        for i, pulse in enumerate(single_pulses):
+            response = single_responses[:,:,i]
+            clip_path = controls_inspect_folder + f'/{name}_single_response_{i}.avi'
+            MZB.inspect_response(single_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, clip_path)
+            print(f' - {name}: {i} - sp')
 
         # Generate response video for each second of paired pulse stimulus
         for i, pulse in enumerate(second_pulses):
             response = paired_responses[:,:,i]
             clip_path = controls_inspect_folder + f'/{name}_paired_response_{i}.avi'
+            MZB.inspect_response(paired_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, clip_path)
+            print(f' - {name}: {i} - pp')
+
+    # Inspect test responses
+    test_paths = glob.glob(tests_folder+'/*.npz')
+    for test_path in test_paths:
+        name = os.path.basename(test_path)[:-4]
+        well_number = int(name.split('_')[1])
+        behaviour = np.load(test_path)
+        single_responses = behaviour['single_responses']
+        paired_responses = behaviour['paired_responses']
+        fish = plate.wells[well_number-1]
+        
+        # Generate response video for each single pulse stimulus
+        for i, pulse in enumerate(single_pulses):
+            response = single_responses[:,:,i]
+            clip_path = tests_inspect_folder + f'/{name}_single_response_{i}.avi'
+            MZB.inspect_response(single_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, clip_path)
+            print(f' - {name}: {i} - sp')
+
+        # Generate response video for each second of paired pulse stimulus
+        for i, pulse in enumerate(second_pulses):
+            response = paired_responses[:,:,i]
+            clip_path = tests_inspect_folder + f'/{name}_paired_response_{i}.avi'
             MZB.inspect_response(paired_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, clip_path)
             print(f' - {name}: {i} - pp')
 

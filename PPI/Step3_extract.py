@@ -39,7 +39,7 @@ summary_path = base_path + "/Sumamry_Info.xlsx"
 # Specify experiment abbreviation
 experiments = ['Akap11', 
                'Cacna1g', 
-               'Gria3', 
+               #'Gria3', 
                'Grin2a',
                'Hcn4',
                'Herc1',
@@ -87,7 +87,7 @@ for experiment in experiments:
         plate = MZP.Plate(name)
 
         # Load plate
-        print(f"Loading plate data...{p} of {len(path_list)}")
+        print(f"Loading plate data...{p+1} of {len(path_list)}")
         plate.load(output_folder)
 
         # Extract stimulus times and types

@@ -20,6 +20,7 @@ sys.path.append(libs_path)
 import os
 import glob
 import numpy as np
+from scipy import stats
 import matplotlib.pyplot as plt
 
 # Import modules
@@ -49,7 +50,8 @@ experiments = ['Akap11',
                'Nr3c2',
                'Sp4',
                'Trio',
-               'Xpo7']
+               'Xpo7'
+               ]
 
 # Extract experiment behaviour
 for experiment in experiments:
@@ -288,12 +290,14 @@ for experiment in experiments:
     plt.suptitle(f'{experiment}: Control PPI ({control_ppi:.1f}%), Test PPI ({test_ppi:.1f}%)')
     plt.axis('off')
     labels = ['Response Probability', 'Integrated Motion', 'Net Distance', 'Net Turning Angle']
+    y_limits = [1, 30, 30, 120]
     for i in range(4):
         plt.subplot(2,4,i+1)
         plt.xlabel(f'Δ{(average_control_mean_single[i] - average_control_mean_paired[i]):.2f}')
         plt.ylabel(labels[i])
         plt.plot([1,2], [control_mean_single[:,i], control_mean_paired[:,i]], color = [0.5,0.5,1.0,0.1])
         plt.boxplot([control_mean_single[:,i], control_mean_paired[:,i]], showmeans = True, meanline = True, notch=True, labels=['Single', 'Paired'])
+        plt.ylim((0, y_limits[i]))
     for i in range(4):
         plt.subplot(2,4,i+5)
         plt.xlabel(f'Δ{(average_test_mean_single[i] - average_test_mean_paired[i]):.2f}')
@@ -301,6 +305,7 @@ for experiment in experiments:
         num_fish = len(control_mean_single[:,i])
         plt.plot([1,2], [test_mean_single[:,i], test_mean_paired[:,i]], color = [0.5,0.5,1.0,0.1])
         plt.boxplot([test_mean_single[:,i], test_mean_paired[:,i]], showmeans = True, meanline = True, notch=True, labels=['Single', 'Paired'])
+        plt.ylim((0, y_limits[i]))
     plt.savefig(summary_figure_path, dpi=180)
     plt.close()
 
@@ -322,12 +327,14 @@ for experiment in experiments:
         average_test_mean_single = np.nanmean(test_mean_single, axis=0)
         average_test_mean_paired = np.nanmean(test_mean_paired, axis=0)
         test_ppi = (average_test_mean_single[0] - average_test_mean_paired[0]) * 100.0
+        y_limits = [1, 30, 30, 120]
         for i in range(4):
             plt.subplot(2,4,i+1)
             plt.xlabel(f'Δ{(average_control_mean_single[i] - average_control_mean_paired[i]):.2f}')
             plt.ylabel(labels[i])
             plt.plot([1,2], [control_mean_single[:,i], control_mean_paired[:,i]], alpha=0.1)
             plt.plot([1,2], [average_control_mean_single[i], average_control_mean_paired[i]], linewidth=3)
+            plt.ylim((0, y_limits[i]))
         for i in range(4):
             plt.subplot(2,4,i+5)
             plt.xlabel(f'Δ{(average_test_mean_single[i] - average_test_mean_paired[i]):.2f}')
@@ -335,11 +342,41 @@ for experiment in experiments:
             num_fish = len(control_mean_single[:,i])
             plt.plot([1,2], [test_mean_single[:,i], test_mean_paired[:,i]], alpha=0.1)
             plt.plot([1,2], [average_test_mean_single[i], average_test_mean_paired[i]], linewidth=3)
+            plt.ylim((0, y_limits[i]))
         plt.subplot(1,1,1)
         title += f'Batch {batch_count}: CPPI {control_ppi:.1f}, TPPI {test_ppi:.1f}   '
         batch_count += 1
     plt.suptitle(f'{experiment}: {title}')
     plt.savefig(summary_figure_path, dpi=180)
     plt.close()
+
+    # Statistics for ALL responses
+    control_mean_single = np.array(all_control_mean_single)
+    control_mean_paired = np.array(all_control_mean_paired)
+    ppi_controls = (control_mean_single[:,0] - control_mean_paired[:,0]) * 100.0
+    num_controls = len(ppi_controls)
+    mean_ppi_controls = np.mean(ppi_controls)
+    std_err_controls = np.std(ppi_controls) / np.sqrt(num_controls-1)
+
+    test_mean_single = np.array(all_test_mean_single)
+    test_mean_paired = np.array(all_test_mean_paired)
+    ppi_tests = (test_mean_single[:,0] - test_mean_paired[:,0]) * 100.0
+    num_tests = len(ppi_tests)
+    mean_ppi_tests = np.mean(ppi_tests)
+    std_err_tests = np.std(ppi_tests) / np.sqrt(num_tests-1)
+    p_value = stats.ttest_ind(ppi_controls, ppi_tests)[1]
+
+    stats_figure_path = experiment_analysis_folder + f'/Stats_{experiment}.png'
+    fig = plt.figure(figsize=(10, 10))
+    plt.title(f'{experiment}:  p = {p_value:.3f}')
+    plt.xticks([1,2], ['Control', 'Tests'], rotation='horizontal')
+    plt.ylabel('PPI (%)')
+    plt.bar(1, mean_ppi_controls, color = (0.3,0.3,1))
+    plt.bar(2, mean_ppi_tests, color = (1,0.3,0.3))
+    plt.errorbar([1,2], [mean_ppi_controls, mean_ppi_tests], yerr=[std_err_controls, std_err_tests], fmt='o', color='black')
+    plt.savefig(stats_figure_path, dpi=180)
+    plt.close()
+    print(num_controls, num_tests)
+
 
 #FIN
