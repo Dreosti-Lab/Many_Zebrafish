@@ -41,10 +41,10 @@ importlib.reload(MZU)
 summary_path = base_path + "/Sumamry_Info.xlsx"
 
 # Specify experiment abbreviation
-#experiment = 'Akap11'
+experiment = 'Akap11'
 #experiment = 'Cacna1g'
 #experiment = 'Gria3'
-experiment = 'Grin2a'
+#experiment = 'Grin2a'
 #experiment = 'Hcn4'
 #experiment = 'Herc1'
 #experiment = 'Nr3c2'
@@ -137,14 +137,16 @@ for p, path in enumerate(path_list):
         for i, pulse in enumerate(single_pulses):
             response = single_responses[:,:,i]
             clip_path = controls_inspect_folder + f'/{name}_single_response_{i}.avi'
-            MZB.inspect_response(single_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, clip_path)
+            MZB.inspect_response(single_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50], clip_path)
             print(f' - {name}: {i} - sp')
 
-        # Generate response video for each second of paired pulse stimulus
-        for i, pulse in enumerate(second_pulses):
+        # Generate response video for each paired pulse stimulus
+        for i, pair in enumerate(paired_pulses):
+            first = pair[0]
+            second = pair[1]
             response = paired_responses[:,:,i]
             clip_path = controls_inspect_folder + f'/{name}_paired_response_{i}.avi'
-            MZB.inspect_response(paired_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, clip_path)
+            MZB.inspect_response(paired_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50-(second-first), 50], clip_path)
             print(f' - {name}: {i} - pp')
 
     # Inspect test responses
@@ -161,17 +163,16 @@ for p, path in enumerate(path_list):
         for i, pulse in enumerate(single_pulses):
             response = single_responses[:,:,i]
             clip_path = tests_inspect_folder + f'/{name}_single_response_{i}.avi'
-            MZB.inspect_response(single_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, clip_path)
+            MZB.inspect_response(single_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50], clip_path)
             print(f' - {name}: {i} - sp')
 
-        # Generate response video for each second of paired pulse stimulus
-        for i, pulse in enumerate(second_pulses):
+        # Generate response video for each paired pulse stimulus
+        for i, pair in enumerate(paired_pulses):
+            first = pair[0]
+            second = pair[1]
             response = paired_responses[:,:,i]
             clip_path = tests_inspect_folder + f'/{name}_paired_response_{i}.avi'
-            MZB.inspect_response(paired_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, clip_path)
+            MZB.inspect_response(paired_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50-(second-first), 50], clip_path)
             print(f' - {name}: {i} - pp')
 
 #FIN
-
-
-#control_26_plate_8_paired_response_6

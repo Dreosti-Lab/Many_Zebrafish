@@ -134,12 +134,20 @@ def measure_response(response, stimulus_index):
     return {'latency':latency, 'magnitude':magnitude, 'distance':distance, 'turning':turning}
 
 # Inspect response
-def inspect_response(movie, roi, response, clip_path):
+def inspect_response(movie, roi, response, stimuli, clip_path):
+    # Characterise response
     is_valid = validate_response(response)
-    metrics = measure_response(response, 50)
-    is_response = classify_response(metrics)
+    metrics = []
+    classifications = []
+    for stimulus in stimuli:
+        m = measure_response(response, stimulus)
+        c = classify_response(m)
+        metrics.append(m)
+        classifications.append(c)
     signal = response[:,4]
     response_length = response.shape[0]
+
+    # Generate clip
     clip_size = 256
     fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
     video = cv2.VideoWriter(clip_path, fourcc, 30, (clip_size,clip_size))
@@ -153,14 +161,14 @@ def inspect_response(movie, roi, response, clip_path):
         x = response[frame_index, 0]
         y = response[frame_index, 1]
         heading = response[frame_index, 2]
-        motion = response[frame_index, 4]
         offset = (roi[0][0],roi[0][1])
         scale = ((clip_size/crop.shape[1]), (clip_size/crop.shape[0]))
-        rgb = plot_signal(rgb, signal, 2, 0.01, (255,0,255), 1, highlight=frame_index)
+        rgb = plot_signal(rgb, signal, 2, 0.01, (255,0,255), 1, stimuli, highlight=frame_index)
         rgb = draw_response_trajectory(rgb, response, offset, scale, 1, (0,255,0), 1)
         rgb = draw_fish(rgb, (x,y), heading, offset, scale, (255,0,0), 1)
-        rgb = draw_response_type(rgb, is_valid, is_response)
-        rgb = draw_response_metrics(rgb, metrics)
+        for s, stimulus in enumerate(stimuli):
+            rgb = draw_response_type(rgb, is_valid, classifications[s], s+1)
+            rgb = draw_response_metrics(rgb, metrics[s], s+1)
         ret = video.write(rgb)
     ret = video.release()
     return
@@ -193,7 +201,7 @@ def draw_fish(image, centroid, heading, offset, scale, line_color, line_thicknes
     return image
 
 # Plot signal
-def plot_signal(image, signal, vertical_offset, vertical_scale, line_color, line_thickness, highlight=-1):
+def plot_signal(image, signal, vertical_offset, vertical_scale, line_color, line_thickness, stimuli, highlight=-1):
     array_length = signal.shape[0]
     width = image.shape[1]
     height = image.shape[1]
@@ -205,17 +213,21 @@ def plot_signal(image, signal, vertical_offset, vertical_scale, line_color, line
         x2 = int(round(x[i+1]))
         y2 = int(round(y[i+1]))
         image = cv2.line(image, (x1, y1), (x2, y2), line_color, line_thickness)
+    for stimulus in stimuli:
+        cx = int(round(x[stimulus]))
+        cy = int(round(y[stimulus]))
+        image = cv2.circle(image, (cx, cy), 2, (255, 255, 0), 1)
     if highlight >= 0:
         cx = int(round(x[highlight]))
         cy = int(round(y[highlight]))
-        image = cv2.circle(image, (cx, cy), 2, (0, 255, 255), 1)
+        image = cv2.circle(image, (cx, cy), 2, (255, 255, 0), 1)
     return image
 
 # Draw response type
-def draw_response_type(image, is_valid, is_response):
+def draw_response_type(image, is_valid, is_response, line):
     font = cv2.FONT_HERSHEY_SIMPLEX
     size = 1
-    pos = (15,55)
+    pos = (5,line*25)
     thickness = 2
     line_type = 1
     if is_valid:
@@ -229,10 +241,10 @@ def draw_response_type(image, is_valid, is_response):
     return image
 
 # Draw response metrics
-def draw_response_metrics(image, metrics):
+def draw_response_metrics(image, metrics, line):
     font = cv2.FONT_HERSHEY_SIMPLEX
     size = 1
-    pos = (5,25)
+    pos = (35,line*25)
     thickness = 1
     line_type = 1
     color = (0,128,255)
@@ -240,7 +252,7 @@ def draw_response_metrics(image, metrics):
     magnitude = metrics['magnitude']
     distance = metrics['distance']
     turning = metrics['turning']
-    metric_text = f'{latency:01d} {int(magnitude//100):02d} {int(distance):02d} {int(turning):+03d}'
+    metric_text = f'{latency:01d} {int(distance):02d} {int(turning):+03d}'
     image = cv2.putText(image, metric_text, pos, font, size, color, thickness, line_type)
     return image
 
