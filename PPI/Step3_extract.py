@@ -37,10 +37,10 @@ importlib.reload(MZU)
 summary_path = base_path + "/Sumamry_Info.xlsx"
 
 # Specify experiment abbreviation
-experiments = ['Akap11', 
+experiments = [#'Akap11', 
                #'Cacna1g', 
-               ##'Gria3', 
-               #'Grin2a',
+               #'Gria3', 
+               'Grin2a',
                #'Hcn4',
                #'Herc1',
                #'Nr3c2',
@@ -66,6 +66,10 @@ for experiment in experiments:
 
         # Ignore bad paths (should fix in summary file!)
         if(path == '/gria3/231219/231219_grin2_PPI_Exp0.avi'): # Corrupt movie
+            continue
+        if(path == '/gria3/240213/exp 1/240213_gria3_PPI_Exp00.avi'): # Bad LED (?)
+            continue
+        if(path == '/gria3/240213/expo 0/240213_gria3_PPI_Exp00.avi'): # Bad LED (?)
             continue
         if(path == '/nr3c2/231121/Exp0/231121_nr3c2_PPI_Exp0.avi'): # Bad LED (?)
             continue

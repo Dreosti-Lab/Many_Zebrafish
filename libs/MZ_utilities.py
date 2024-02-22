@@ -80,7 +80,7 @@ def load_path_list(path_list_path):
 # Parse summary (PPI)
 def parse_summary_PPI(summary_path, gene_name):
     first_row = 2
-    last_row = 3169
+    last_row = 3841
 
     # Load summary workbook (PPI)
     wb = load_workbook(summary_path, read_only=True)

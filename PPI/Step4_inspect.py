@@ -41,10 +41,10 @@ importlib.reload(MZU)
 summary_path = base_path + "/Sumamry_Info.xlsx"
 
 # Specify experiment abbreviation
-experiment = 'Akap11'
+#experiment = 'Akap11'
 #experiment = 'Cacna1g'
 #experiment = 'Gria3'
-#experiment = 'Grin2a'
+experiment = 'Grin2a'
 #experiment = 'Hcn4'
 #experiment = 'Herc1'
 #experiment = 'Nr3c2'
