@@ -135,8 +135,12 @@ def measure_response(response, stimulus_index):
 
 # Inspect response
 def inspect_response(movie, roi, response, stimuli, clip_path):
+    result = []
+    result.append(os.path.basename(clip_path[:-4]))
+
     # Characterise response
     is_valid = validate_response(response)
+    result.append(is_valid)
     metrics = []
     classifications = []
     for stimulus in stimuli:
@@ -144,6 +148,7 @@ def inspect_response(movie, roi, response, stimuli, clip_path):
         c = classify_response(m)
         metrics.append(m)
         classifications.append(c)
+        result.append(c)
     signal = response[:,4]
     response_length = response.shape[0]
 
@@ -171,7 +176,7 @@ def inspect_response(movie, roi, response, stimuli, clip_path):
             rgb = draw_response_metrics(rgb, metrics[s], s+1)
         ret = video.write(rgb)
     ret = video.release()
-    return
+    return result
 
 # Draw response trajectory
 def draw_response_trajectory(image, response, offset, scale, radius, color, thickness):

@@ -75,6 +75,10 @@ for p, path in enumerate(path_list):
     inspect_folder = output_folder + '/inspect'
     controls_inspect_folder = inspect_folder + '/controls'
     tests_inspect_folder = inspect_folder + '/tests'
+    controls_single_review_path = inspect_folder + '/control_single_review.csv'
+    controls_paired_review_path = inspect_folder + '/control_paired_review.csv'
+    tests_single_review_path = inspect_folder + '/test_single_review.csv'
+    tests_paired_review_path = inspect_folder + '/test_paired_review.csv'
     roi_path = output_folder + '/roi.csv'
 
     # Empty inspect folder
@@ -125,6 +129,8 @@ for p, path in enumerate(path_list):
 
     # Inspect control responses
     control_paths = glob.glob(controls_folder+'/*.npz')
+    single_results = []
+    paired_results = []
     for control_path in control_paths:
         name = os.path.basename(control_path)[:-4]
         well_number = int(name.split('_')[1])
@@ -137,20 +143,28 @@ for p, path in enumerate(path_list):
         for i, pulse in enumerate(single_pulses):
             response = single_responses[:,:,i]
             clip_path = controls_inspect_folder + f'/{name}_single_response_{i}.avi'
-            MZB.inspect_response(single_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50], clip_path)
+            result = MZB.inspect_response(single_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50], clip_path)
+            single_results.append(result)
             print(f' - {name}: {i} - sp')
-
+        
         # Generate response video for each paired pulse stimulus
         for i, pair in enumerate(paired_pulses):
             first = pair[0]
             second = pair[1]
             response = paired_responses[:,:,i]
             clip_path = controls_inspect_folder + f'/{name}_paired_response_{i}.avi'
-            MZB.inspect_response(paired_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50-(second-first), 50], clip_path)
+            result = MZB.inspect_response(paired_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50-(second-first), 50], clip_path)
+            paired_results.append(result)
             print(f' - {name}: {i} - pp')
+    
+    # Save results (for review)
+    np.savetxt(controls_single_review_path, single_results, delimiter =",", fmt ='%s')
+    np.savetxt(controls_paired_review_path, paired_results, delimiter =",", fmt ='%s')
 
     # Inspect test responses
     test_paths = glob.glob(tests_folder+'/*.npz')
+    single_results = []
+    paired_results = []
     for test_path in test_paths:
         name = os.path.basename(test_path)[:-4]
         well_number = int(name.split('_')[1])
@@ -163,7 +177,8 @@ for p, path in enumerate(path_list):
         for i, pulse in enumerate(single_pulses):
             response = single_responses[:,:,i]
             clip_path = tests_inspect_folder + f'/{name}_single_response_{i}.avi'
-            MZB.inspect_response(single_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50], clip_path)
+            result = MZB.inspect_response(single_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50], clip_path)
+            single_results.append(result)
             print(f' - {name}: {i} - sp')
 
         # Generate response video for each paired pulse stimulus
@@ -172,7 +187,12 @@ for p, path in enumerate(path_list):
             second = pair[1]
             response = paired_responses[:,:,i]
             clip_path = tests_inspect_folder + f'/{name}_paired_response_{i}.avi'
-            MZB.inspect_response(paired_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50-(second-first), 50], clip_path)
+            result = MZB.inspect_response(paired_responses_frames[i], (fish.roi_ul, fish.roi_lr), response, [50-(second-first), 50], clip_path)
+            paired_results.append(result)
             print(f' - {name}: {i} - pp')
+    
+    # Save results (for review)
+    np.savetxt(tests_single_review_path, single_results, delimiter =",", fmt ='%s')
+    np.savetxt(tests_paired_review_path, paired_results, delimiter =",", fmt ='%s')
 
 #FIN
