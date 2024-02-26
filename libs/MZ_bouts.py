@@ -190,19 +190,19 @@ def draw_response_trajectory(image, response, offset, scale, radius, color, thic
     return image
 
 # Plot "fish" - heading + centroid
-def draw_fish(image, centroid, heading, offset, scale, line_color, line_thickness):
+def draw_fish(image, centroid, heading, offset, scale, line_length, line_color, line_thickness):
     theta = (heading / 360.0) * 2.0 * np.pi
     dx = np.cos(theta)
     dy = -np.sin(theta)
     cx = int(round((centroid[0] - offset[0]) * scale[0]))
     cy = int(round((centroid[1] - offset[1]) * scale[1]))
-    hx = cx + int(round(25 * dx))
-    hy = cy + int(round(25 * dy))
-    tx = cx + int(round(25 * -dx))
-    ty = cy + int(round(25 * -dy))
+    hx = cx + int(round(line_length * dx))
+    hy = cy + int(round(line_length * dy))
+    tx = cx + int(round(line_length * -dx))
+    ty = cy + int(round(line_length * -dy))
     image = cv2.line(image, (hx, hy), (tx, ty), line_color, line_thickness)
     image = cv2.circle(image, (hx, hy), 3, (255, 255, 0), 1)
-    image = cv2.circle(image, (cx, cy), 2, (0, 255, 255), 1)
+    image = cv2.circle(image, (cx, cy), 2, (0, 0, 255), 1)
     return image
 
 # Plot signal

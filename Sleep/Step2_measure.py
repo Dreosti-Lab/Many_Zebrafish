@@ -74,7 +74,7 @@ for path in path_list:
         restart_frame = 0
 
     # Determine processing chunks
-    chunk_size = 100000
+    chunk_size = 30000
     start_frames= []
     end_frames= []
     for c in range(restart_frame, num_frames, chunk_size):

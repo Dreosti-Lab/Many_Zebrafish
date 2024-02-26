@@ -47,7 +47,7 @@ for path in path_list:
     # Mask difference image
     image  = cv2.imread(image_path)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    mask_roi = ((118,168),(1162,870))
+    mask_roi = ((136,113),(1166,805))
     mask = np.zeros(np.shape(gray))
     mask[mask_roi[0][1]:mask_roi[1][1],mask_roi[0][0]:mask_roi[1][0]] = 1
     masked = gray * mask
