@@ -32,7 +32,7 @@ importlib.reload(MZU)
 #----------------------------------------------------------
 
 # Create Paths
-video_path = '/home/kampff/data/Dropbox/Adam_Ele/schizo_fish/Raw_Videos/Non_Social.avi'
+video_path = '/home/kampff/data/Dropbox/Adam_Ele/schizo_fish/Raw_Videos/Social_no_cues/NonSocial.avi'
 roi_path = video_path[:-4] + '_rois.csv'
 output_folder = os.path.dirname(video_path) + '/analysis'
 

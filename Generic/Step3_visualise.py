@@ -39,7 +39,7 @@ importlib.reload(MZU)
 #----------------------------------------------------------
 
 # Create Paths
-video_path = '/home/kampff/data/Dropbox/Adam_Ele/schizo_fish/Raw_Videos/Non_Social.avi'
+video_path = '/home/kampff/data/Dropbox/Adam_Ele/schizo_fish/Raw_Videos/Social_no_cues/NonSocial.avi'
 output_folder = os.path.dirname(video_path) + '/analysis'
 visualise_path = output_folder + '/visualise.avi'
 roi_path = video_path[:-4] + '_rois.csv'
@@ -68,25 +68,26 @@ frame_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
 frame_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 # Set start and end frame
-start_frame = 0
-num_frames = 600
+start_frame = 8750
+num_frames = 1200
 
 # Crate visualise movie
 fourcc = cv2.VideoWriter_fourcc('F','M','P','4')
-output = cv2.VideoWriter(visualise_path, fourcc, 30, (frame_width,frame_height))
+output = cv2.VideoWriter(visualise_path, fourcc, 60, (frame_width,frame_height))
 
 # Visualise
 f = start_frame
 accumulator = np.zeros((frame_height, frame_width))
+colors = [(0,0,255), (0,128,255), (0,255,255), (0,255,0), (255,0,0), (255,0,255)]
 for i in range(num_frames):
     ret = vid.set(cv2.CAP_PROP_POS_FRAMES, f)
     ret, im = vid.read()
     for j, fish in enumerate(plate.wells):
-        # Draw current position
-        im = MZB.draw_fish(im, (fish.x[f], fish.y[f]), fish.heading[f], (0,0), (1,1), (0,255,255), 1)
         # Draw history
         if i > 100:
-            im = MZB.draw_response_trajectory(im, behaviours[j][100:f,:], (0,0), (1,1), 1, (0,0,255),1)
+            im = MZB.draw_response_trajectory(im, behaviours[j][(start_frame + 100):f,:], (0,0), (1,1), 1, colors[j],1)
+        # Draw current position
+        im = MZB.draw_fish(im, (fish.x[f], fish.y[f]), fish.heading[f], (0,0), (1,1), 40, (0,255,255), 1)
     ret = output.write(im)
     if i > 100:
         f = f + ((i - 90)  // 10)
