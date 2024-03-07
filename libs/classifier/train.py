@@ -50,14 +50,16 @@ test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=64, shuff
 inspect = False
 if inspect:
     train_features, train_targets = next(iter(train_dataloader))
-    for i in range(9):
-        plt.subplot(3,3,i+1)
-        feature = train_features[i]
-        target = train_targets[i]
+    target = train_targets[0]
+    if target == 0:
+        plt.suptitle("No Response")
+    else:
+        plt.suptitle("Response")
+    for i in range(20):
+        plt.subplot(5,4,i+1)
+        feature = train_features[0][i]
         feature = (feature + 2.0) / 4.0
-        image = np.transpose(feature, (1,2,0))
-        plt.imshow(image)
-        plt.plot(target[0] * 224, target[1] * 224, 'g+', markersize=15,)
+        plt.imshow(feature)
     plt.show()
 
 # Reimport

@@ -158,12 +158,15 @@ for p, path in enumerate(path_list):
         if not is_valid:
             continue
         dataset_frame = np.zeros((dataset_times, dataset_dim, dataset_dim), dtype=np.uint8)
+        previous = single_responses_frames[response_number][stimulus_frame-1]
         for f in range(dataset_times):
             frame = single_responses_frames[response_number][stimulus_frame+f]
+            #diff = cv2.subtract(frame, previous)
             crop = MZV.get_ROI_crop(frame, (fish.roi_ul, fish.roi_lr))
             gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
             resize = cv2.resize(gray, (dataset_dim,dataset_dim))
             dataset_frame[f,:,:] = resize
+            #previous = frame
         ret = np.save(dataset_folder + f'/{is_response}_{name}.npy', dataset_frame)
 
     # Process control paired responses
@@ -184,21 +187,27 @@ for p, path in enumerate(path_list):
         if not is_valid:
             continue
         dataset_frame = np.zeros((dataset_times, dataset_dim, dataset_dim), dtype=np.uint8)
+        previous = paired_responses_frames[response_number][first_stimulus_frame-1]
         for f in range(dataset_times):
             frame = paired_responses_frames[response_number][first_stimulus_frame+f]
+            #diff = cv2.subtract(frame, previous)
             crop = MZV.get_ROI_crop(frame, (fish.roi_ul, fish.roi_lr))
             gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
             resize = cv2.resize(gray, (dataset_dim,dataset_dim))
             dataset_frame[f,:,:] = resize
+            #previous = frame
         ret = np.save(dataset_folder + f'/{is_response}_first_{name}.npy', dataset_frame)
 
         dataset_frame = np.zeros((dataset_times, dataset_dim, dataset_dim), dtype=np.uint8)
+        previous = paired_responses_frames[response_number][second_stimulus_frame-1]
         for f in range(dataset_times):
             frame = paired_responses_frames[response_number][second_stimulus_frame+f]
+            #diff = cv2.subtract(frame, previous)
             crop = MZV.get_ROI_crop(frame, (fish.roi_ul, fish.roi_lr))
             gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
             resize = cv2.resize(gray, (dataset_dim,dataset_dim))
             dataset_frame[f,:,:] = resize
+            #previous = frame
         ret = np.save(dataset_folder + f'/{is_response}_second_{name}.npy', dataset_frame)
 #FIN
 
