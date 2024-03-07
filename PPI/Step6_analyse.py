@@ -91,7 +91,7 @@ for experiment in experiments:
         figures_folder = output_folder + '/figures'
         controls_figure_folder = figures_folder + '/controls'
         tests_figure_folder = figures_folder + '/tests'
-        experiment_analysis_folder = base_path + '/PPI' + '/analysis'
+        experiment_analysis_folder = base_path + '/PPI' + '/_analysis'
 
         # Empty figures folder
         MZU.clear_folder(figures_folder)

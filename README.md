@@ -38,9 +38,15 @@ source MZPY/bin/activate
 - python-dotenv
 - openpyxl
 
+For machine learning classifier:
+- torch
+- torchvision
+- torchsummary
+
 ```bash
 # Ensure your virtual environment is (active)
 pip install numpy matplotlib opencv-python scikit-image python-dotenv openpyxl
+pip install torch torchvision torchsummary
 ```
 
 ## Environment File
