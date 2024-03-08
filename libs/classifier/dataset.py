@@ -3,6 +3,7 @@ import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+import random
 
 # Get user name
 username = os.getlogin()
@@ -20,7 +21,10 @@ class custom(torch.utils.data.Dataset):
         data = np.load(self.data_paths[idx])
         name = os.path.basename(self.data_paths[idx])
         target = torch.tensor(float(name.split('_')[0]))
-        input = (2.0 * (np.float32(data) / np.mean(data[:]))) - 1.0
+        input = (2.0 * (np.float32(data) / 255.0)) - 1.0
+        # Augment (or just resize)
+        if self.augment:
+            input, target = augment(input, target)
         return input, target
 
 # Load dataset
@@ -47,8 +51,12 @@ def prepare(dataset_folder, split):
 
 # Augment
 def augment(data, target):
-    height, width, depth = data.shape
-    augmented_data = data
-    return augmented_data, target
+    v_flip = random.randint(0, 1)
+    h_flip = random.randint(0, 1)
+    if(v_flip):
+        data = np.flip(data, 1)
+    if(h_flip):
+        data = np.flip(data, 2)
+    return data.copy(), target
 
 #FIN

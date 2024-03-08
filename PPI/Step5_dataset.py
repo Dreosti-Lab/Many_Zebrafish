@@ -135,8 +135,8 @@ for p, path in enumerate(path_list):
     vid.release()
 
     # Dataset parameters
-    dataset_dim = 48
-    dataset_times = 20
+    dataset_dim = 224
+    dataset_times = [0, 9, 19]
 
     # Load response reviews
     controls_single_results = np.genfromtxt(controls_single_review_path, delimiter =",", dtype=str)
@@ -157,16 +157,14 @@ for p, path in enumerate(path_list):
         is_response = int(controls_single_results[i, 4])
         if not is_valid:
             continue
-        dataset_frame = np.zeros((dataset_times, dataset_dim, dataset_dim), dtype=np.uint8)
-        previous = single_responses_frames[response_number][stimulus_frame-1]
-        for f in range(dataset_times):
-            frame = single_responses_frames[response_number][stimulus_frame+f]
-            #diff = cv2.subtract(frame, previous)
+
+        dataset_frame = np.zeros((3, dataset_dim, dataset_dim), dtype=np.uint8)
+        for f in range(3):
+            frame = single_responses_frames[response_number][stimulus_frame+dataset_times[f]]
             crop = MZV.get_ROI_crop(frame, (fish.roi_ul, fish.roi_lr))
             gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
             resize = cv2.resize(gray, (dataset_dim,dataset_dim))
             dataset_frame[f,:,:] = resize
-            #previous = frame
         ret = np.save(dataset_folder + f'/{is_response}_{name}.npy', dataset_frame)
 
     # Process control paired responses
@@ -182,32 +180,31 @@ for p, path in enumerate(path_list):
         first_stimulus_frame = pre_frames - (second - first)
         second_stimulus_frame = pre_frames
         fish = plate.wells[well_number-1]
-        is_valid = int(controls_single_results[i, 3])
-        is_response = int(controls_single_results[i, 4])
+        is_valid = int(controls_paired_results[i, 4])
+        is_first_response = int(controls_paired_results[i, 5])
+        is_second_response = int(controls_paired_results[i, 6])
         if not is_valid:
             continue
-        dataset_frame = np.zeros((dataset_times, dataset_dim, dataset_dim), dtype=np.uint8)
-        previous = paired_responses_frames[response_number][first_stimulus_frame-1]
-        for f in range(dataset_times):
-            frame = paired_responses_frames[response_number][first_stimulus_frame+f]
-            #diff = cv2.subtract(frame, previous)
-            crop = MZV.get_ROI_crop(frame, (fish.roi_ul, fish.roi_lr))
-            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-            resize = cv2.resize(gray, (dataset_dim,dataset_dim))
-            dataset_frame[f,:,:] = resize
-            #previous = frame
-        ret = np.save(dataset_folder + f'/{is_response}_first_{name}.npy', dataset_frame)
 
-        dataset_frame = np.zeros((dataset_times, dataset_dim, dataset_dim), dtype=np.uint8)
-        previous = paired_responses_frames[response_number][second_stimulus_frame-1]
-        for f in range(dataset_times):
-            frame = paired_responses_frames[response_number][second_stimulus_frame+f]
-            #diff = cv2.subtract(frame, previous)
+        dataset_frame = np.zeros((3, dataset_dim, dataset_dim), dtype=np.uint8)
+        for f in range(3):
+            frame = paired_responses_frames[response_number][first_stimulus_frame+dataset_times[f]]
             crop = MZV.get_ROI_crop(frame, (fish.roi_ul, fish.roi_lr))
             gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
             resize = cv2.resize(gray, (dataset_dim,dataset_dim))
             dataset_frame[f,:,:] = resize
-            #previous = frame
-        ret = np.save(dataset_folder + f'/{is_response}_second_{name}.npy', dataset_frame)
+        ret = np.save(dataset_folder + f'/{is_first_response}_first_{name}.npy', dataset_frame)
+
+        dataset_frame = np.zeros((3, dataset_dim, dataset_dim), dtype=np.uint8)
+        for f in range(3):
+            frame = paired_responses_frames[response_number][second_stimulus_frame+dataset_times[f]]
+            crop = MZV.get_ROI_crop(frame, (fish.roi_ul, fish.roi_lr))
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+            resize = cv2.resize(gray, (dataset_dim,dataset_dim))
+            dataset_frame[f,:,:] = resize
+        ret = np.save(dataset_folder + f'/{is_second_response}_second_{name}.npy', dataset_frame)
+        #plt.title(name + f': {is_second_response}')
+        #plt.imshow(np.moveaxis(dataset_frame, 0, -1))
+        #plt.show()
+
 #FIN
-

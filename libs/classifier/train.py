@@ -33,7 +33,7 @@ username = os.getlogin()
 # Specify paths
 experiment_folder = base_path + '/PPI'
 dataset_folder = experiment_folder + '/_dataset'
-model_path = experiment_folder + '/_model'
+model_path = experiment_folder + '/classification_model.pt'
 
 # Prepare datasets
 train_data, test_data = dataset.prepare(dataset_folder, 0.8)
@@ -43,22 +43,23 @@ train_dataset = dataset.custom(data_paths=train_data, augment=True)
 test_dataset = dataset.custom(data_paths=test_data, augment=True)
 
 # Create data loaders
-train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True)
-test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=64, shuffle=True)
+train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True)
+test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=128, shuffle=True)
 
 # Inspect dataset?
-inspect = False
+inspect = True
 if inspect:
     train_features, train_targets = next(iter(train_dataloader))
-    target = train_targets[0]
-    if target == 0:
-        plt.suptitle("No Response")
-    else:
-        plt.suptitle("Response")
-    for i in range(20):
-        plt.subplot(5,4,i+1)
-        feature = train_features[0][i]
-        feature = (feature + 2.0) / 4.0
+    target = train_targets
+    for i in range(9):
+        plt.subplot(3,3,i+1)
+        if target[i] == 0:
+            plt.title("No Response")
+        else:
+            plt.title("Response")
+        feature = train_features[i]
+        feature = np.uint8((feature + 1.0) * 127.0)
+        feature = np.swapaxes(feature, 2, 0)
         plt.imshow(feature)
     plt.show()
 
@@ -100,11 +101,12 @@ def train(dataloader, model, loss_fn, optimizer):
 
         if batch % 2 == 0:
             loss, current = loss.item(), batch * len(X)
-            pixel_loss = np.sqrt(loss) * 48.0
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}], pixel_loss: {pixel_loss:>5f}")
+            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
 # Define testing
 def test(dataloader, model, loss_fn):
+    num_correct = 0
+    num_wrong = 0
     size = len(dataloader.dataset)
     num_batches = len(dataloader)
     model.eval()
@@ -114,9 +116,18 @@ def test(dataloader, model, loss_fn):
             X, y = X.to(device), y.to(device)
             pred = model(X)
             test_loss += loss_fn(pred, y.unsqueeze(1)).item()
+            for i in range(len(pred)):
+                target = y[i]
+                output = pred[i]
+                answer = (target > 0.5)
+                prediction = (output > 0.5)[0]
+                if answer == prediction:
+                    num_correct += 1
+                else:
+                    num_wrong += 1
+    accuracy = 100.0 * num_correct/(num_correct+num_wrong)
     test_loss /= num_batches
-    pixel_loss = np.sqrt(test_loss) * 48.0
-    print(f"Test Error: \n Avg loss: {test_loss:>8f}, pixel_loss: {pixel_loss:>5f}\n")
+    print(f"Test Error: \n Avg loss: {test_loss:>8f}, Test Accuracy: {accuracy}%\n")
 
 # TRAIN
 epochs = 250
@@ -127,30 +138,47 @@ for t in range(epochs):
 print("Done!")
 
 
+# Evaluate
 
-
-# Display image and label.
-train_features, train_targets = next(iter(test_dataloader))
-print(f"Feature batch shape: {train_features.size()}")
-print(f"Targets batch shape: {train_targets.size()}")
+# Display data and classification
+features, targets = next(iter(test_dataloader))
 
 # Let's run it
-train_features_gpu = train_features.to(device)
-outputs = custom_model(train_features_gpu)
+features = features.to(device)
+outputs = custom_model(features)
 outputs = outputs.cpu().detach().numpy()
 
-# Examine predictions
-for i in range(9):
-    plt.subplot(3,3,i+1)
-    feature = train_features[i]
+# Evaluate performance
+num_correct = 0
+num_wrong = 0
+
+for i in range(len(outputs)):
     target = train_targets[i]
     output = outputs[i]
-    feature = (feature + 2.0) / 4.0
-    image = np.transpose(feature, (1,2,0))
-    plt.imshow(image)
-    plt.plot(output[0] * 224, output[1] * 224, 'yo', markersize=15, fillstyle='full')
-    plt.plot(target[0] * 224, target[1] * 224, 'g+', markersize=15,)
-plt.show()
+    answer = (target > 0.5)
+    prediction = (output > 0.5)[0]
+    if answer == prediction:
+        num_correct += 1
+    else:
+        num_wrong += 1
+print(f'Performance ({num_correct} vs {num_wrong}): {100.0 * num_correct/(num_correct+num_wrong)}%')
+
+## Examine predictions
+#for i in range(9):
+#    plt.subplot(3,3,i+1)
+#    feature = train_features[i]
+#    target = train_targets[i]
+#    output = outputs[i]
+#    feature = np.uint8((feature + 1.0) * 127.0)
+#    feature = np.swapaxes(feature, 2, 0)
+#    plt.imshow(feature)
+#    answer = (target > 0.5)
+#    prediction = (output > 0.5)[0]
+#    if answer == prediction:
+#        plt.title("Correct")
+#    else:
+#        plt.title("Wrong")
+#plt.show()
 
 
 
@@ -158,7 +186,7 @@ plt.show()
 
 
 # Save model
-torch.save(custom_model.state_dict(), output_path + '/custom.pt')
+torch.save(custom_model.state_dict(), model_path + '/custom.pt')
 
 
 # FIN
