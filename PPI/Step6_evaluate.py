@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Create classification dataset for reponses in a 96-well PPI experiment
+Evaluate classification model for reponses in a 96-well PPI experiment
 
 @author: kampff
 """
@@ -58,14 +58,14 @@ plates, paths, controls, tests = MZU.parse_summary_PPI(summary_path, experiment)
 # Set list of video paths
 path_list = paths
 
-# Set dataset folder
+# Set model path
 experiment_folder = base_path + '/PPI'
-dataset_folder = experiment_folder + '/_dataset'
-
-# Empty dataset folder
-MZU.clear_folder(dataset_folder)
+model_path = experiment_folder + '/classification_model.pt'
 
 # Inspect behaviour for video paths (*.avi) in path_list
+num_correct_algorithm = 0
+num_correct_classifier = 0
+num_total = 0
 for p, path in enumerate(path_list):
     print(path)
 
@@ -88,8 +88,6 @@ for p, path in enumerate(path_list):
     controls_folder = responses_folder + '/controls'
     tests_folder = responses_folder + '/tests'
     inspect_folder = output_folder + '/inspect'
-    controls_inspect_folder = inspect_folder + '/controls'
-    tests_inspect_folder = inspect_folder + '/tests'
     controls_single_review_path = inspect_folder + '/controls_single_review.csv'
     controls_paired_review_path = inspect_folder + '/controls_paired_review.csv'
     tests_single_review_path = inspect_folder + '/tests_single_review.csv'
@@ -116,6 +114,9 @@ for p, path in enumerate(path_list):
     # Load video
     vid = cv2.VideoCapture(video_path)
 
+    # Create classifier
+    classifier = MZC.Classifier(model_path)
+
     # Dataset parameters
     dataset_dim = 224
     dataset_times = [0, 9, 19]
@@ -135,12 +136,19 @@ for p, path in enumerate(path_list):
         response_number = int(name.split('_')[6])
         stimulus_frame = single_pulses[response_number]
         fish = plate.wells[well_number-1]
+        algo_valid = controls_single_results[i, 1] == 'True'
+        algo_response = controls_single_results[i, 2]  == 'True'
         is_valid = int(controls_single_results[i, 3])
         is_response = int(controls_single_results[i, 4])
         if not is_valid:
             continue
-        dataset_frame = MZC.generate_data(vid, (fish.roi_ul, fish.roi_lr), dataset_dim, dataset_times, stimulus_frame)
-        ret = np.save(dataset_folder + f'/{is_response}_{name}.npy', dataset_frame)
+        prediction = classifier.classify(vid, (fish.roi_ul, fish.roi_lr), stimulus_frame)
+        if(prediction == is_response):
+            num_correct_classifier += 1
+        if(algo_response == is_response):
+            num_correct_algorithm += 1
+        num_total += 1
+        #print(('single', prediction, is_response, algo_response))
 
     # Process control paired responses
     control_paths = controls_paired_results[:,0]
@@ -153,20 +161,38 @@ for p, path in enumerate(path_list):
         first_stimulus_frame = pulse[0]
         second_stimulus_frame = pulse[1]
         fish = plate.wells[well_number-1]
+        algo_valid = controls_single_results[i, 1] == 'True'
+        algo_first_response = controls_single_results[i, 2]  == 'True'
+        algo_second_response = controls_single_results[i, 3]  == 'True'
         is_valid = int(controls_paired_results[i, 4])
         is_first_response = int(controls_paired_results[i, 5])
         is_second_response = int(controls_paired_results[i, 6])
         if not is_valid:
             continue
-        dataset_frame = MZC.generate_data(vid, (fish.roi_ul, fish.roi_lr), dataset_dim, dataset_times, first_stimulus_frame)
-        ret = np.save(dataset_folder + f'/{is_first_response}_first_{name}.npy', dataset_frame)
-        dataset_frame = MZC.generate_data(vid, (fish.roi_ul, fish.roi_lr), dataset_dim, dataset_times, second_stimulus_frame)
-        ret = np.save(dataset_folder + f'/{is_second_response}_second_{name}.npy', dataset_frame)
-        #plt.title(name + f': {is_second_response}')
-        #plt.imshow(np.moveaxis(dataset_frame, 0, -1))
-        #plt.show()
+
+        prediction = classifier.classify(vid, (fish.roi_ul, fish.roi_lr), first_stimulus_frame)
+        if(prediction == is_first_response):
+            num_correct_classifier += 1
+        if(algo_first_response == is_first_response):
+            num_correct_algorithm += 1
+        num_total += 1
+        #print(('first', prediction, is_first_response, algo_first_response))
+
+        prediction = classifier.classify(vid, (fish.roi_ul, fish.roi_lr), second_stimulus_frame)
+        if(prediction == is_second_response):
+            num_correct_classifier += 1
+        if(algo_second_response == is_second_response):
+            num_correct_algorithm += 1
+        num_total += 1
+        #print(('second', prediction, is_second_response, algo_second_response))
 
     # Close video
     vid.release()
+
+# Performance
+algorithm_accuracy = (num_correct_algorithm/num_total) * 100.0
+classifier_accuracy = (num_correct_classifier/num_total) * 100.0
+print(f"Algorithm ({num_correct_algorithm} of {num_total}): {algorithm_accuracy}%")
+print(f"Classifier ({num_correct_classifier} of {num_total}): {classifier_accuracy}%")
 
 #FIN

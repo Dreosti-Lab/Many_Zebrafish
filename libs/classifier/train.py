@@ -43,8 +43,8 @@ train_dataset = dataset.custom(data_paths=train_data, augment=True)
 test_dataset = dataset.custom(data_paths=test_data, augment=True)
 
 # Create data loaders
-train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True)
-test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=128, shuffle=True)
+train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
+test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=32, shuffle=True)
 
 # Inspect dataset?
 inspect = True
@@ -73,7 +73,7 @@ custom_model = model.custom()
 
 # Set loss function
 loss_fn = torch.nn.BCELoss()
-optimizer = torch.optim.Adam(custom_model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(custom_model.parameters(), lr=0.0001)
 
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -130,38 +130,12 @@ def test(dataloader, model, loss_fn):
     print(f"Test Error: \n Avg loss: {test_loss:>8f}, Test Accuracy: {accuracy}%\n")
 
 # TRAIN
-epochs = 250
+epochs = 10
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
     train(train_dataloader, custom_model, loss_fn, optimizer)
     test(test_dataloader, custom_model, loss_fn)
 print("Done!")
-
-
-# Evaluate
-
-# Display data and classification
-features, targets = next(iter(test_dataloader))
-
-# Let's run it
-features = features.to(device)
-outputs = custom_model(features)
-outputs = outputs.cpu().detach().numpy()
-
-# Evaluate performance
-num_correct = 0
-num_wrong = 0
-
-for i in range(len(outputs)):
-    target = train_targets[i]
-    output = outputs[i]
-    answer = (target > 0.5)
-    prediction = (output > 0.5)[0]
-    if answer == prediction:
-        num_correct += 1
-    else:
-        num_wrong += 1
-print(f'Performance ({num_correct} vs {num_wrong}): {100.0 * num_correct/(num_correct+num_wrong)}%')
 
 ## Examine predictions
 #for i in range(9):
@@ -180,13 +154,7 @@ print(f'Performance ({num_correct} vs {num_wrong}): {100.0 * num_correct/(num_co
 #        plt.title("Wrong")
 #plt.show()
 
-
-
-
-
-
 # Save model
-torch.save(custom_model.state_dict(), model_path + '/custom.pt')
-
+torch.save(custom_model.state_dict(), model_path)
 
 # FIN
