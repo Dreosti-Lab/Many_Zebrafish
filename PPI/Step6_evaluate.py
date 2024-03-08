@@ -111,7 +111,7 @@ for p, path in enumerate(path_list):
     pre_frames = 50
     post_frames = 100
 
-    # Load video
+    # Open video
     vid = cv2.VideoCapture(video_path)
 
     # Create classifier

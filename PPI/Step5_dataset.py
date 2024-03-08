@@ -113,12 +113,12 @@ for p, path in enumerate(path_list):
     pre_frames = 50
     post_frames = 100
 
-    # Load video
-    vid = cv2.VideoCapture(video_path)
-
     # Dataset parameters
     dataset_dim = 224
     dataset_times = [0, 9, 19]
+    
+    # Open video
+    vid = cv2.VideoCapture(video_path)
 
     # Load response reviews
     controls_single_results = np.genfromtxt(controls_single_review_path, delimiter =",", dtype=str)
