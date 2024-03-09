@@ -51,9 +51,13 @@ experiment = 'Grin2a'
 #experiment = 'Sp4'
 #experiment = 'Trio'
 #experiment = 'Xpo7'
-plates, paths, controls, tests = MZU.parse_summary_PPI(summary_path, experiment)
+
+# Default PPI response window
+pre_frames = 50
+post_frames = 100
 
 # Set list of video paths
+plates, paths, controls, tests = MZU.parse_summary_PPI(summary_path, experiment)
 path_list = paths
 
 # Inspect behaviour for video paths (*.avi) in path_list
@@ -98,10 +102,6 @@ for p, path in enumerate(path_list):
     single_pulses = pulses['single_pulses']
     paired_pulses = pulses['paired_pulses']
     second_pulses = [x[1] for x in paired_pulses]
-
-    # Default PPI response window
-    pre_frames = 50
-    post_frames = 100
 
     # Load video
     vid = cv2.VideoCapture(video_path)

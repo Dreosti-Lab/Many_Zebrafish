@@ -32,26 +32,32 @@ class Classifier:
         self.model.to(self.device)
         return
 
-    def classify(self, video, roi, stimulus_frame):
-        data = generate_data(video, roi, self.input_dim, self.input_times, stimulus_frame)
-        input = torch.tensor((2.0 * (np.float32(data) / 255.0)) - 1.0)
+    def classify(self, datapoint, debug=False):
+        input = torch.tensor((2.0 * (np.float32(datapoint) / 255.0)) - 1.0)
         input = torch.unsqueeze(input, 0)
         input = input.to(self.device)
         output = self.model(input)
         output = (output.cpu().detach().numpy()[0][0] > 0.5)
+        if debug:
+            if output:
+                plt.title("Response")
+            else:
+                plt.title("No Response")
+            feature = np.swapaxes(datapoint, 2, 0)
+            plt.imshow(feature)
+            plt.show()
         return output
 
 # Utilities for working with 96-well plate experiments
 
-# Generate classifier data
-def generate_data(video, roi, dim, times, stimulus_frame):
-    data = np.zeros((3, dim, dim), dtype=np.uint8)
+# Generate classifier datapoint
+def generate_datapoint(frames, roi, data_dim, data_times, index_frame):
+    data = np.zeros((3, data_dim, data_dim), dtype=np.uint8)
     for f in range(3):
-        ret = video.set(cv2.CAP_PROP_POS_FRAMES, stimulus_frame+times[f])
-        ret, frame = video.read()
+        frame = frames[index_frame + data_times[f]]
         crop = MZV.get_ROI_crop(frame, roi)
         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-        resize = cv2.resize(gray, (dim,dim))
+        resize = cv2.resize(gray, (data_dim, data_dim))
         data[f,:,:] = resize
     return data
 

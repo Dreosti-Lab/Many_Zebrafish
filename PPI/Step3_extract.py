@@ -39,13 +39,6 @@ importlib.reload(MZU)
 # Specify summary path
 summary_path = base_path + "/Sumamry_Info.xlsx"
 
-# Set model path
-experiment_folder = base_path + '/PPI'
-model_path = experiment_folder + '/classification_model.pt'
-
-# Create classifier
-classifier = MZC.Classifier(model_path)
-
 # Specify experiment abbreviation
 experiments = ['Akap11', 
                'Cacna1g', 
@@ -59,18 +52,26 @@ experiments = ['Akap11',
                'Xpo7'
                ]
 
-# Extract experiment behaviour
+# Default PPI response window
+pre_frames = 50
+post_frames = 100
+
+# Default dataset dimensions and times
+data_dim = 224
+data_times = [0, 9, 19]
+
+# Extract experiment
 for experiment in experiments:
     plates, paths, controls, tests = MZU.parse_summary_PPI(summary_path, experiment)
 
     # Set list of video paths
     path_list = paths
 
-    # Analyse behaviour for video paths (*.avi) in path_list
-    control_single_responses = np.empty((8,200,0))
-    test_single_responses = np.empty((8,200,0))
-    control_paired_responses = np.empty((8,200,0))
-    test_paired_responses = np.empty((8,200,0))
+    # Extract behaviour for video paths (*.avi) in path_list
+    control_single_responses = np.empty((8,pre_frames+post_frames+1,0))
+    test_single_responses = np.empty((8,pre_frames+post_frames+1,0))
+    control_paired_responses = np.empty((8,pre_frames+post_frames+1,0))
+    test_paired_responses = np.empty((8,pre_frames+post_frames+1,0))
     for p, path in enumerate(path_list):
         print(path)
 
@@ -82,6 +83,8 @@ for experiment in experiments:
         if(path == '/gria3/240213/expo 0/240213_gria3_PPI_Exp00.avi'): # Bad LED (?)
             continue
         if(path == '/nr3c2/231121/Exp0/231121_nr3c2_PPI_Exp0.avi'): # Bad LED (?)
+            continue
+        if(path == '/sp4/231116/Exp0/231116_SP4_Exp00.avi'): # Bad LED (?)
             continue
 
         # Specify Paths
@@ -127,49 +130,74 @@ for experiment in experiments:
             plt.plot(100, np.max(led_intensity), 'g+')
             plt.plot((pair[1]-pair[0])+100, np.max(led_intensity), 'b+')
             plt.yticks([])
-        plt.savefig(output_folder + f'/led_intensity_plate_{plates[p]}.png', dpi=180)
+        plt.savefig(output_folder + f'/led_intensity.png', dpi=180)
         plt.cla()
         plt.close()
 
-        # Extract PPI responses
-        pre_frames = 50
-        post_frames = 100
-        
-        # Open Video
+        # Load video
         vid = cv2.VideoCapture(video_path)
+        single_responses_frames = np.empty(8, object)
+        paired_responses_frames = np.empty(8, object)
         
-        # Extract and save all control responses
-        for c in controls[p]:
-            behaviour = MZU.extract_behaviour(plate, c-1)
-            single_responses = MZU.extract_responses(behaviour, single_pulses, pre_frames, post_frames)
-            paired_responses = MZU.extract_responses(behaviour, second_pulses, pre_frames, post_frames)
-            fish = plate.wells[c-1]
-            single_classifications = []
-            first_classifications = []
-            second_classifications = []
-            for r in range(8):
-                single_classifications.append(classifier.classify(vid, (fish.roi_ul, fish.roi_lr), single_pulses[r]))
-                first_classifications.append(classifier.classify(vid, (fish.roi_ul, fish.roi_lr), first_pulses[r]))
-                second_classifications.append(classifier.classify(vid, (fish.roi_ul, fish.roi_lr), second_pulses[r]))
-            control_path = controls_folder + f'/control_{c}_plate_{plates[p]}.npz'
-            np.savez(control_path, single_responses=single_responses, paired_responses=paired_responses, single_classifications=single_classifications, first_classifications=first_classifications, second_classifications=second_classifications)
-
-        # Extract and save all test responses
-        for t in tests[p]:
-            behaviour = MZU.extract_behaviour(plate, t-1)
-            single_responses = MZU.extract_responses(behaviour, single_pulses, pre_frames, post_frames)
-            paired_responses = MZU.extract_responses(behaviour, second_pulses, pre_frames, post_frames)
-            fish = plate.wells[t-1]
-            single_classifications = []
-            first_classifications = []
-            second_classifications = []
-            for r in range(8):
-                single_classifications.append(classifier.classify(vid, (fish.roi_ul, fish.roi_lr), single_pulses[r]))
-                first_classifications.append(classifier.classify(vid, (fish.roi_ul, fish.roi_lr), first_pulses[r]))
-                second_classifications.append(classifier.classify(vid, (fish.roi_ul, fish.roi_lr), second_pulses[r]))
-            test_path = tests_folder + f'/test_{t}_plate_{plates[p]}.npz'
-            np.savez(test_path, single_responses=single_responses, paired_responses=paired_responses, single_classifications=single_classifications, first_classifications=first_classifications, second_classifications=second_classifications)
+        # Load pre/post inspection frames from video
+        for i, pulse in enumerate(single_pulses):
+            frames = []
+            ret = vid.set(cv2.CAP_PROP_POS_FRAMES, pulse-pre_frames)
+            for f in range(pulse-pre_frames, pulse+post_frames+1):
+                ret, frame = vid.read()
+                frames.append(frame)
+            single_responses_frames[i] = frames
+        for i, pulse in enumerate(second_pulses):
+            frames = []
+            ret = vid.set(cv2.CAP_PROP_POS_FRAMES, pulse-pre_frames)
+            for f in range(pulse-pre_frames, pulse+post_frames+1):
+                ret, frame = vid.read()
+                frames.append(frame)
+            paired_responses_frames[i] = frames
 
         # Close video
         vid.release()
+        
+        # Extract and save all control responses
+        for c in controls[p]:
+            fish = plate.wells[c-1]
+            behaviour = MZU.extract_behaviour(plate, c-1)
+            single_responses = MZU.extract_responses(behaviour, single_pulses, pre_frames, post_frames)
+            paired_responses = MZU.extract_responses(behaviour, second_pulses, pre_frames, post_frames)
+            single_datapoints = []
+            paired_datapoints = []
+            for r in range(8):
+                single_datapoint = MZC.generate_datapoint(single_responses_frames[r], (fish.roi_ul, fish.roi_lr), data_dim, data_times, pre_frames)
+                first_frame_offset = pre_frames - (second_pulses[r] - first_pulses[r])
+                first_datapoint = MZC.generate_datapoint(paired_responses_frames[r], (fish.roi_ul, fish.roi_lr), data_dim, data_times, first_frame_offset)
+                second_datapoint = MZC.generate_datapoint(paired_responses_frames[r], (fish.roi_ul, fish.roi_lr), data_dim, data_times, pre_frames)
+                paired_datapoint = []
+                paired_datapoint.append(first_datapoint)
+                paired_datapoint.append(second_datapoint)
+                single_datapoints.append(single_datapoint)
+                paired_datapoints.append(paired_datapoint)
+            control_path = controls_folder + f'/control_{c}_plate_{plates[p]}.npz'
+            np.savez(control_path, single_responses=single_responses, paired_responses=paired_responses, single_datapoints=single_datapoints, paired_datapoints=paired_datapoints)
+
+        # Extract and save all test responses
+        for t in tests[p]:
+            fish = plate.wells[t-1]
+            behaviour = MZU.extract_behaviour(plate, t-1)
+            single_responses = MZU.extract_responses(behaviour, single_pulses, pre_frames, post_frames)
+            paired_responses = MZU.extract_responses(behaviour, second_pulses, pre_frames, post_frames)
+            single_datapoints = []
+            paired_datapoints = []
+            for r in range(8):
+                single_datapoint = MZC.generate_datapoint(single_responses_frames[r], (fish.roi_ul, fish.roi_lr), data_dim, data_times, pre_frames)
+                first_frame_offset = pre_frames - (second_pulses[r] - first_pulses[r])
+                first_datapoint = MZC.generate_datapoint(paired_responses_frames[r], (fish.roi_ul, fish.roi_lr), data_dim, data_times, first_frame_offset)
+                second_datapoint = MZC.generate_datapoint(paired_responses_frames[r], (fish.roi_ul, fish.roi_lr), data_dim, data_times, pre_frames)
+                paired_datapoint = []
+                paired_datapoint.append(first_datapoint)
+                paired_datapoint.append(second_datapoint)
+                single_datapoints.append(single_datapoint)
+                paired_datapoints.append(paired_datapoint)
+            test_path = tests_folder + f'/test_{t}_plate_{plates[p]}.npz'
+            np.savez(test_path, single_responses=single_responses, paired_responses=paired_responses, single_datapoints=single_datapoints, paired_datapoints=paired_datapoints)
+
 #FIN

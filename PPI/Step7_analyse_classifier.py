@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import MZ_plate as MZP
 import MZ_video as MZV
 import MZ_bouts as MZB
+import MZ_classifier as MZC
 import MZ_utilities as MZU
 
 # Reload modules
@@ -34,11 +35,16 @@ import importlib
 importlib.reload(MZP)
 importlib.reload(MZV)
 importlib.reload(MZB)
+importlib.reload(MZC)
 importlib.reload(MZU)
 #----------------------------------------------------------
 
 # Specify summary path
 summary_path = base_path + "/Sumamry_Info.xlsx"
+
+# Set model path
+experiment_folder = base_path + '/PPI'
+model_path = experiment_folder + '/classification_model.pt'
 
 # Specify experiment abbreviation
 experiments = ['Akap11', 
@@ -46,12 +52,19 @@ experiments = ['Akap11',
                #'Gria3', 
                'Grin2a',
                'Hcn4',
-               #'Herc1',
-               #'Nr3c2',
-               #'Sp4',
-               #'Trio',
-               #'Xpo7'
+               'Herc1',
+               'Nr3c2',
+               'Sp4',
+               'Trio',
+               'Xpo7'
                ]
+
+# Default PPI response window
+pre_frames = 50
+post_frames = 100
+
+# Create classifier
+classifier = MZC.Classifier(model_path)
 
 # Extract experiment behaviour
 for experiment in experiments:
@@ -79,7 +92,13 @@ for experiment in experiments:
         # Ignore bad paths (should fix in summary file!)
         if(path == '/gria3/231219/231219_grin2_PPI_Exp0.avi'): # Corrupt movie
             continue
+        if(path == '/gria3/240213/exp 1/240213_gria3_PPI_Exp00.avi'): # Bad LED (?)
+            continue
+        if(path == '/gria3/240213/expo 0/240213_gria3_PPI_Exp00.avi'): # Bad LED (?)
+            continue
         if(path == '/nr3c2/231121/Exp0/231121_nr3c2_PPI_Exp0.avi'): # Bad LED (?)
+            continue
+        if(path == '/sp4/231116/Exp0/231116_SP4_Exp00.avi'): # Bad LED (?)
             continue
 
         # Create Paths
@@ -109,11 +128,8 @@ for experiment in experiments:
         pulses = np.load(responses_folder + '/pulses.npz')
         single_pulses = pulses['single_pulses']
         paired_pulses = pulses['paired_pulses']
+        first_pulses = [x[0] for x in paired_pulses]
         second_pulses = [x[1] for x in paired_pulses]
-
-        # Default PPI response window
-        pre_frames = 50
-        post_frames = 100
 
         # Accumulators
         control_mean_single = []
@@ -129,25 +145,32 @@ for experiment in experiments:
             behaviour = np.load(path)
             single_responses = behaviour['single_responses']
             paired_responses = behaviour['paired_responses']
-            single_classifications = behaviour['single_classifications']
-            first_classifications = behaviour['first_classifications']
-            second_classifications = behaviour['second_classifications']
+            single_datapoints = behaviour['single_datapoints']
+            paired_datapoints = behaviour['paired_datapoints']
             fish = plate.wells[well_number-1]
 
             # Responses to single pulse stimulus
+            classifications = []
             magnitudes = []
             distances = []
             turnings = []
             for i, pulse in enumerate(single_pulses):
                 response = single_responses[:,:,i]
                 metrics = MZB.measure_response(response, 50)
+                classification = classifier.classify(single_datapoints[i])
+                classifications.append(classification)
                 magnitudes.append(metrics['magnitude']/1000)
                 distances.append(metrics['distance'])
                 turnings.append(metrics['turning'])
-            response_probability = sum(single_classifications)/8
+            response_probability = sum(classifications)/8
             mean_single = ([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
+            if sum(classifications) >= 2:
+                responsive_fish = True
+            else:
+                responsive_fish = False
 
             # Responses to paired pulse stimulus
+            classifications = []
             magnitudes = []
             distances = []
             turnings = []
@@ -155,14 +178,17 @@ for experiment in experiments:
                 response = paired_responses[:,:,i]
                 pre_offset = pair[1] - pair[0]
                 second_metrics = MZB.measure_response(response, 50)
+                first_classification = classifier.classify(paired_datapoints[i][0])
+                second_classification = classifier.classify(paired_datapoints[i][1])
+                classifications.append(second_classification)
                 magnitudes.append(second_metrics['magnitude']/1000)
                 distances.append(second_metrics['distance'])
                 turnings.append(second_metrics['turning'])
-            response_probability = sum(second_classifications)/8
+            response_probability = sum(classifications)/8
             mean_paired = ([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
 
             # Accumulate controls
-            if(sum(single_classifications) >= 1):
+            if responsive_fish:
                 control_mean_single.append(mean_single)
                 control_mean_paired.append(mean_paired)
                 all_control_mean_single.append(mean_single)
@@ -176,25 +202,32 @@ for experiment in experiments:
             behaviour = np.load(path)
             single_responses = behaviour['single_responses']
             paired_responses = behaviour['paired_responses']
-            single_classifications = behaviour['single_classifications']
-            first_classifications = behaviour['first_classifications']
-            second_classifications = behaviour['second_classifications']
+            single_datapoints = behaviour['single_datapoints']
+            paired_datapoints = behaviour['paired_datapoints']
             fish = plate.wells[well_number-1]
 
             # Responses to single pulse stimulus
+            classifications = []
             magnitudes = []
             distances = []
             turnings = []
             for i, pulse in enumerate(single_pulses):
                 response = single_responses[:,:,i]
                 metrics = MZB.measure_response(response, 50)
+                classification = classifier.classify(single_datapoints[i])
+                classifications.append(classification)
                 magnitudes.append(metrics['magnitude']/1000)
                 distances.append(metrics['distance'])
-                turnings.append(metrics['turning'])
-            response_probability = sum(single_classifications)/8
+                turnings.append(metrics['turning'])                
+            response_probability = sum(classifications)/8
             mean_single = ([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
+            if sum(classifications) >= 2:
+                responsive_fish = True
+            else:
+                responsive_fish = False
 
             # Responses to paired pulse stimulus
+            classifications = []
             magnitudes = []
             distances = []
             turnings = []
@@ -202,14 +235,17 @@ for experiment in experiments:
                 response = paired_responses[:,:,i]
                 pre_offset = pair[1] - pair[0]
                 second_metrics = MZB.measure_response(response, 50)
+                first_classification = classifier.classify(paired_datapoints[i][0])
+                second_classification = classifier.classify(paired_datapoints[i][1])
+                classifications.append(second_classification)
                 magnitudes.append(second_metrics['magnitude']/1000)
                 distances.append(second_metrics['distance'])
                 turnings.append(second_metrics['turning'])
-            response_probability = sum(second_classifications)/8
+            response_probability = sum(classifications)/8
             mean_paired = ([response_probability, np.nanmean(magnitudes), np.nanmean(distances), np.nanmean(np.abs(turnings))])
 
             # Accumulate tests
-            if(sum(single_classifications) >= 1):
+            if responsive_fish:
                 test_mean_single.append(mean_single)
                 test_mean_paired.append(mean_paired)
                 all_test_mean_single.append(mean_single)
