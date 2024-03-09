@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Analyse behaviour in a 96-well Sleep experiment
+Summarise behaviour in a 96-well Sleep experiment
 
 @author: kampff
 """
@@ -39,7 +39,14 @@ importlib.reload(MZU)
 path_list_path = base_path + "/Sleep/path_list.txt"
 path_list = MZU.load_path_list(path_list_path)
 
-# Analyse behaviour for video paths (*.avi) in path_list
+# To Do
+# - Load each plate
+# - Summarise behaviour sensibly, build a large structure
+#   - Bouts...time, duration, stuff....frame indexed
+# - Save summary
+
+
+# Summarise behaviour for video paths (*.avi) in path_list
 for path in path_list:
     # Create Paths
     video_path = base_path + path
