@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Extract rseponses in a 96-well PPI experiment
+Summarise rseponses in a 96-well PPI experiment
 
 @author: kampff
 """

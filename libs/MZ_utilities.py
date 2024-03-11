@@ -129,6 +129,58 @@ def parse_summary_PPI(summary_path, gene_name):
         all_tests.append(tests)
     return plates, paths, all_controls, all_tests
 
+# Parse summary (Sleep)
+def parse_summary_Sleep(summary_path, gene_name):
+    first_row = 2
+    last_row = 2881
+
+    # Load summary workbook (Sleep)
+    wb = load_workbook(summary_path, read_only=True)
+    ws = wb.get_sheet_by_name('Sleep')
+
+    # Extract cells
+    plate_cells = ws[f'A{first_row}:A{last_row}']
+    path_cells = ws[f'F{first_row}:F{last_row}']
+    well_cells = ws[f'I{first_row}:I{last_row}']
+    include_cells = ws[f'J{first_row}:J{last_row}']
+    control_cells = ws[f'L{first_row}:L{last_row}']
+    gene_cells = ws[f'M{first_row}:M{last_row}']
+
+    # Find plates
+    plates = []
+    paths = []
+    last_plate = -1
+    for i, cell in enumerate(gene_cells):
+        gene = cell[0].value
+        if gene == gene_name:
+            plate = plate_cells[i][0].value
+            path = '/' + path_cells[i][0].value
+            if plate != last_plate:
+                plates.append(plate)
+                paths.append(path)
+                last_plate = plate
+
+    # Extract valid controls and test fish
+    all_controls = []
+    all_tests = []
+    for plate in plates:
+        controls = []
+        tests = []
+        for i, cell in enumerate(plate_cells):
+            if cell[0].value != plate:                  # Correct plate
+                continue
+            if include_cells[i][0].value == 0:          # Include?
+                continue
+            if gene_cells[i][0].value == gene_name:     # Correct gene?
+                tests.append(well_cells[i][0].value)
+            elif control_cells[i][0].value == 1:        # Is control?
+                controls.append(well_cells[i][0].value)
+            else:
+                continue
+        all_controls.append(controls)
+        all_tests.append(tests)
+    return plates, paths, all_controls, all_tests
+
 # Create a folder (if it does not exist)
 def create_folder(folder_path):
     if not os.path.exists(folder_path):

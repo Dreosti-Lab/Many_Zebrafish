@@ -23,8 +23,8 @@ importlib.reload(MZV)
 
 # Utilities for analysing and inspecting bouts performed in 96-well plate experiments
 
-# Extract bouts
-def extract_bouts(behaviour):
+# Extract bouts (into dictionary)
+def extract_bouts_dictionary(behaviour, frame_offset=0):
     upper_threshold = 250
     lower_threshold = 150
     x = behaviour[:, 0]
@@ -55,15 +55,75 @@ def extract_bouts(behaviour):
         dy = stop_y - start_y
         distance = np.sqrt((dx*dx) + (dy*dy))
         turning = stop_heading - start_heading
-        bouts.append({  'start':start, 
-                        'peak':peak, 
-                        'stop':stop,
+        bouts.append({  'start':start+frame_offset, 
+                        'peak':peak+frame_offset, 
+                        'stop':stop+frame_offset,
                         'duration':duration,
                         'max':max,
                         'magnitude':magnitude,
                         'distance':distance,
                         'turning':turning   })
     return bouts
+
+# Extract bouts (into array)
+def extract_bouts_array(behaviour, frame_offset=0):
+    upper_threshold = 250
+    lower_threshold = 150
+    x = behaviour[:, 0]
+    y = behaviour[:, 1]
+    heading = behaviour[:, 2]
+    cumulative_heading = cumulative_angle(heading)
+    area = behaviour[:, 3]
+    motion = behaviour[:, 4]
+    bout_filter = np.array([0.25, 0.25, 0.25, 0.25])
+    bout_signal = signal.fftconvolve(motion, bout_filter, 'same')
+    starts, peaks, stops = find_peaks_dual_threshold(bout_signal, upper_threshold, lower_threshold)
+    num_bouts = len(starts)
+    bouts = np.zeros((num_bouts, 8), dtype=np.float32)
+    for b in range(num_bouts):
+        start = starts[b]
+        peak = peaks[b]
+        stop = stops[b]
+        duration = stop-start
+        max = bout_signal[peak]
+        magnitude = np.sum(bout_signal[start:stop])
+        start_x = np.median(x[(start-6):(start-1)])
+        start_y = np.median(y[(start-6):(start-1)])
+        start_heading = np.median(cumulative_heading[(start-6):(start-1)])
+        stop_x = np.median(x[stop:(stop+5)])
+        stop_y = np.median(y[stop:(stop+5)])
+        stop_heading = np.median(cumulative_heading[stop:(stop+5)])
+        dx = stop_x - start_x
+        dy = stop_y - start_y
+        distance = np.sqrt((dx*dx) + (dy*dy))
+        turning = stop_heading - start_heading
+        bouts[b, 0] = start+frame_offset
+        bouts[b, 1] = peak+frame_offset
+        bouts[b, 2] = stop+frame_offset
+        bouts[b, 3] = duration
+        bouts[b, 4] = max
+        bouts[b, 5] = magnitude
+        bouts[b, 6] = distance
+        bouts[b, 7] = turning
+    return bouts
+
+# Compute bouts per minute
+def compute_bouts_per_minute(bouts, fps):
+    num_frames = bouts[-1,2]
+    num_seconds = num_frames / fps
+    num_minutes = int(num_seconds // 60)
+    minute_start = 0
+    minute_end = fps*60
+    minute_step = fps*60
+    bout_summary = np.zeros((num_minutes, 6))
+    for m in range(num_minutes):
+        minute_indices = np.where((bouts[:,0] >= minute_start) * ((bouts[:,0] < minute_end)))[0]
+        minute_bouts = bouts[minute_indices,:]
+        bouts_per_minute = minute_bouts.shape[0]
+        bout_summary[m,:] = np.hstack((bouts_per_minute, np.mean(minute_bouts[:, 3:8], axis=0)))
+        minute_start += minute_step
+        minute_end += minute_step
+    return bout_summary
 
 # Is this response valid?
 #  < 5% tracking failures (area = -1.0)
@@ -114,7 +174,7 @@ def cumulative_angle(heading):
 
 # Measure response to simulus
 def measure_response(response, stimulus_index):
-    bouts = extract_bouts(response)
+    bouts = extract_bouts_dictionary(response)
     # Find first bout after stimulus
     first_bout = None
     for bout in bouts:

@@ -25,111 +25,120 @@ import matplotlib.pyplot as plt
 # Import modules
 import MZ_plate as MZP
 import MZ_video as MZV
+import MZ_bouts as MZB
 import MZ_utilities as MZU
 
 # Reload modules
 import importlib
 importlib.reload(MZP)
 importlib.reload(MZV)
+importlib.reload(MZB)
 importlib.reload(MZU)
 
 #----------------------------------------------------------
 
-# Load list of video paths
-path_list_path = base_path + "/Sleep/path_list.txt"
-path_list = MZU.load_path_list(path_list_path)
+# Specify summary path
+summary_path = base_path + "/Sumamry_Info.xlsx"
 
-# To Do
-# - Load each plate
-# - Summarise behaviour sensibly, build a large structure
-#   - Bouts...time, duration, stuff....frame indexed
-# - Save summary
+# Specify experiment abbreviation
+experiments = [#'Akap11', 
+               #'Cacna1g', 
+               'Gria3', 
+               #'Grin2a',
+               #'Hcn4',
+               #'Herc1',
+               #'Nr3c2',
+               #'Sp4',
+               #'Trio',
+               #'Xpo7'
+               ]
 
+# Extract experiment
+for experiment in experiments:
+    plates, paths, controls, tests = MZU.parse_summary_Sleep(summary_path, experiment)
 
-# Summarise behaviour for video paths (*.avi) in path_list
-for path in path_list:
-    # Create Paths
-    video_path = base_path + path
-    output_folder = os.path.dirname(video_path) + '/analysis'
-    plate_folder = output_folder + '/plate'
-    figures_folder = os.path.dirname(video_path) + '/analysis/figures'
-    fish_figures_folder = os.path.dirname(video_path) + '/analysis/figures/fish'
-    
-    # Create figures folder
-    if not os.path.exists(figures_folder):
-        os.makedirs(figures_folder)   
+    # Set list of video paths
+    path_list = paths
 
-    # Create fish figures folder
-    if not os.path.exists(fish_figures_folder):
-        os.makedirs(fish_figures_folder)   
+    # DEBUG - truncate path_list to only analyse one experiment
+    path_list = [paths[1]]
 
-    # Create plate structure
-    name = path.split('/')[-1][:-4]
-    plate = MZP.Plate(name)
+    # Summarise experiment
+    for p, path in enumerate(path_list):
+        p = 1
+        print(path)
 
-    # Load plate in chunks
-    plate_paths = sorted(glob.glob(plate_folder + '/*.npz'), key=os.path.getmtime)
-    count  = 0
-    intensity = np.empty(0, dtype=np.float32)
-    for plate_path in plate_paths:
-        frame_range = plate_path[:-4].split('_')[-2:]
-        start_frame = int(frame_range[0])
-        end_frame = int(frame_range[1])
-        print(f'Loading plate data chunk...{start_frame} to {end_frame}')
-        plate.load(output_folder, start_frame, end_frame)
-        if count >= 1:
-            print(np.sum(plate.wells[11].stack[2][:] - previous_debug))
-        previous_debug = plate.wells[11].stack[2][:]
-        count = count + 1
-        print(plate.intensity[-1])
-        intensity = np.hstack((intensity, plate.intensity))
-        plate.clear()
+        # Create Paths
+        video_path = base_path + '/Sleep' + path
+        output_folder = os.path.dirname(video_path) + '/analysis'
+        plate_folder = output_folder + '/plate'
+        responses_folder = output_folder + '/responses'
+        controls_folder = responses_folder + '/controls'
+        tests_folder = responses_folder + '/tests'
+        figures_folder = output_folder + '/figures'
 
-    # ---- Need and append plate function ?? ----
+        # Empty responses folder
+        MZU.clear_folder(responses_folder)
+        MZU.create_folder(controls_folder)
+        MZU.create_folder(tests_folder)
 
-    # Load intensity
-    num_frames = len(intensity)
-    print(num_frames)
+        # Empty figures folder
+        MZU.clear_folder(figures_folder)
 
-    # Plot intensity
-    fig = plt.figure(figsize=(10, 4))
-    plt.title('Background Intensity Detection')
-    plt.plot(intensity)
-    plt.savefig(figures_folder + '/intensity.png', dpi=180)
-    plt.cla()
-    plt.close()
-    
-    # Analyse
-    for i, fish in enumerate(plate.wells):
-        figure_path = fish_figures_folder + f'/{(i+1):02d}_fish.png'
-        x = fish.x
-        y = fish.y
-        area = fish.area
-        heading = fish.heading
-        motion = fish.motion
+        # Create plate structure
+        name = path.split('/')[-1][:-4]
+        plate = MZP.Plate(name)
 
-        fig = plt.figure(figsize=(10, 8))
-        plt.subplot(2,2,1)
-        plt.title('Motion')
-        plt.plot(motion)
-        plt.ylim(0, 10000)
-        plt.subplot(2,2,2)
-        plt.title('Tracking')
-        plt.plot(x,y,'.', markersize=3, color=[0,0,0,0.01])
-        plt.xlim(fish.roi_ul[0], fish.roi_lr[0])
-        plt.ylim(fish.roi_ul[1], fish.roi_lr[1])
-        plt.subplot(2,2,3)
-        plt.title('Area')
-        plt.plot(area, 'm.', markersize=2, alpha=0.25)
-        plt.ylim(0, 400)
-        plt.subplot(2,2,4)
-        plt.title('Heading')
-        plt.plot(heading, 'g.', markersize=2, alpha=0.25)
+        # Load plate in chunks
+        plate_paths = sorted(glob.glob(plate_folder + '/*.npz'), key=os.path.getmtime)
+        all_intensity = np.empty(0, dtype=np.float32)
+        all_bouts = np.empty(96, object)
+        for w in range(96):
+            all_bouts[w] = np.empty((0,8))
+        for plate_path in plate_paths:
+            frame_range = plate_path[:-4].split('_')[-2:]
+            start_frame = int(frame_range[0])
+            end_frame = int(frame_range[1])
 
-        # Save
-        plt.savefig(figure_path, dpi=180)
-        print(i)
+            # Load plate
+            print(f'Loading plate data chunk...{start_frame} to {end_frame}')
+            try:
+                plate.load(output_folder, start_frame, end_frame)
+            except ValueError:
+                print(f"Corrupt plate file {plate_path}")
+
+            # Extract and store all bouts
+            for w in range(96):
+                fish = plate.wells[w]
+                behaviour = MZU.extract_behaviour(plate, w)
+                bouts = MZB.extract_bouts_array(behaviour, frame_offset=start_frame)
+                all_bouts[w] = np.vstack((all_bouts[w], bouts))
+                
+            # Extract and store intensity
+            all_intensity = np.hstack((all_intensity, plate.intensity))
+
+            # Clear plate structure
+            plate.clear()
+
+        # Load intensity
+        num_frames = len(all_intensity)
+        print(num_frames)
+
+        # Plot intensity
+        fig = plt.figure(figsize=(10, 4))
+        plt.title('Background Intensity Detection')
+        plt.plot(all_intensity)
+        plt.savefig(figures_folder + '/intensity.png', dpi=180)
         plt.cla()
         plt.close()
+        
+        # Save all control bouts
+        for c in controls[p]:
+            control_path = controls_folder + f'/control_{c}_plate_{plates[p]}.npz'
+            np.savez(control_path, bouts=all_bouts[c-1])
 
+        # Save all test bouts
+        for t in tests[p]:
+            test_path = tests_folder + f'/test_{t}_plate_{plates[p]}.npz'
+            np.savez(test_path, bouts=all_bouts[t-1])
 #FIN

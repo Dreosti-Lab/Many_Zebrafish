@@ -67,5 +67,5 @@ All the results of analysis are stored in an "analysis" folder located within th
 2. **Step2_measure**: Tracks each fish in each ROI, dynamically updates background
    - Set the "background update rate" based on movie frame rate (4 secs between updates is good)
    - If "validate" is True, then an overview of the tracking will be saved every 1000 frames
-3. **Step3_analyse**: Preliminary analysis scripts working with the intermediate tracking data
+3. **Step3_summarise**: Generate intermediate tracking data and summary figures
 
