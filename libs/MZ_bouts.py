@@ -125,6 +125,29 @@ def compute_bouts_per_minute(bouts, fps):
         minute_end += minute_step
     return bout_summary
 
+# Compute sleep epochs
+def compute_sleep_epochs(bouts, lights, fps):
+    intervals = np.diff(bouts[:,2], prepend=0)/fps
+    sunsets = lights[:,0]
+    sunrises = lights[:,1]
+    night_epochs = []
+    for (set, rise) in zip(sunsets, sunrises):
+        set_frame = set*60*fps
+        rise_frame = rise*60*fps
+        night_indices = np.where((bouts[:,0] >= set_frame) * ((bouts[:,0] < rise_frame)))[0]
+        night_intervals = intervals[night_indices]
+        sleep_epochs = np.sum(night_intervals >= 60)
+        night_epochs.append(sleep_epochs)
+    day_epochs = []
+    for (rise, set) in zip(sunrises[:-1], sunsets[1:]):
+        rise_frame = rise*60*fps
+        set_frame = set*60*fps
+        day_indices = np.where((bouts[:,0] >= rise_frame) * ((bouts[:,0] < set_frame)))[0]
+        day_intervals = intervals[day_indices]
+        sleep_epochs = np.sum(day_intervals >= 60)
+        day_epochs.append(sleep_epochs)
+    return [np.mean(night_epochs), np.mean(day_epochs)]
+
 # Is this response valid?
 #  < 5% tracking failures (area = -1.0)
 #  < 2% heading flips

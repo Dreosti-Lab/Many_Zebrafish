@@ -132,7 +132,7 @@ def parse_summary_PPI(summary_path, gene_name):
 # Parse summary (Sleep)
 def parse_summary_Sleep(summary_path, gene_name):
     first_row = 2
-    last_row = 2881
+    last_row = 3457
 
     # Load summary workbook (Sleep)
     wb = load_workbook(summary_path, read_only=True)

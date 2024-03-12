@@ -61,12 +61,18 @@ for experiment in experiments:
     path_list = paths
 
     # DEBUG - truncate path_list to only analyse one experiment
-    path_list = [paths[1]]
+    #path_list = [paths[1]]
 
     # Summarise experiment
     for p, path in enumerate(path_list):
-        p = 1
         print(path)
+
+        ## DEBUG: Trio
+        #if (plates[p] == 2):
+        #    continue
+        # DEBUG: Gria3
+        if (plates[p] == 2):
+            continue
 
         # Create Paths
         video_path = base_path + '/Sleep' + path
@@ -84,7 +90,7 @@ for experiment in experiments:
 
         # Empty figures folder
         MZU.clear_folder(figures_folder)
-
+        
         # Create plate structure
         name = path.split('/')[-1][:-4]
         plate = MZP.Plate(name)
