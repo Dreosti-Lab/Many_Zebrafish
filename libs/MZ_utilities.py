@@ -194,4 +194,9 @@ def clear_folder(folder_path):
     os.makedirs(folder_path)
     return
 
+# Load raw zip exported from ZebraLab
+def load_raw_zip():
+    
+    return
+
 #FIN
