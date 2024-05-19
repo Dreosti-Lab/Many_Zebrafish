@@ -123,30 +123,44 @@ def compute_bouts_per_minute(bouts, fps):
         bout_summary[m,:] = np.hstack((bouts_per_minute, np.mean(minute_bouts[:, 3:8], axis=0)))
         minute_start += minute_step
         minute_end += minute_step
+    # Summary
+    # 1. BPM
+    # 2. Mean Duration
+    # 3. Mean Max
+    # 4. Mean Magnitude
+    # 5. Mean Distance
+    # 6. Mean Turning
     return bout_summary
 
 # Compute sleep epochs
-def compute_sleep_epochs(bouts, lights, fps):
+def compute_sleep_epochs(bouts, lights, fps, min_per_epoch=60):
     intervals = np.diff(bouts[:,2], prepend=0)/fps
     sunsets = lights[:,0]
     sunrises = lights[:,1]
     night_epochs = []
+    night_durations = []
     for (set, rise) in zip(sunsets, sunrises):
         set_frame = set*60*fps
         rise_frame = rise*60*fps
         night_indices = np.where((bouts[:,0] >= set_frame) * ((bouts[:,0] < rise_frame)))[0]
         night_intervals = intervals[night_indices]
-        sleep_epochs = np.sum(night_intervals >= 60)
+        # Measure total sleep?
+        sleep_epochs = np.sum(night_intervals >= min_per_epoch)
+        sleep_durations = np.sum(night_intervals[night_intervals >= min_per_epoch])
         night_epochs.append(sleep_epochs)
+        night_durations.append(sleep_durations)
     day_epochs = []
+    day_durations = []
     for (rise, set) in zip(sunrises[:-1], sunsets[1:]):
         rise_frame = rise*60*fps
         set_frame = set*60*fps
         day_indices = np.where((bouts[:,0] >= rise_frame) * ((bouts[:,0] < set_frame)))[0]
         day_intervals = intervals[day_indices]
-        sleep_epochs = np.sum(day_intervals >= 60)
+        sleep_epochs = np.sum(day_intervals >= min_per_epoch)
+        sleep_durations = np.sum(day_intervals[day_intervals >= min_per_epoch])
         day_epochs.append(sleep_epochs)
-    return [np.mean(night_epochs), np.mean(day_epochs)]
+        day_durations.append(sleep_durations)
+    return [np.mean(night_epochs), np.mean(day_epochs), np.mean(night_durations), np.mean(day_durations)]
 
 # Is this response valid?
 #  < 5% tracking failures (area = -1.0)

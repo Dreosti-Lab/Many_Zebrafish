@@ -132,9 +132,11 @@ for experiment in experiments:
         # Compute BPM, sleep epochs, and other measures from individual bout data
 
         # Storage for average BPM
-        control_bpm = []
+        control_wells = []
+        control_summary = []
         control_epochs = []
-        test_bpm = []
+        test_wells = []
+        test_summary = []
         test_epochs = []
 
         # Analyse all control bouts
@@ -146,7 +148,8 @@ for experiment in experiments:
             bouts = data['bouts']
             summary = MZB.compute_bouts_per_minute(bouts, 25)
             epochs = MZB.compute_sleep_epochs(bouts, lights, 25)
-            control_bpm.append(summary)
+            control_wells.append(well_number)
+            control_summary.append(summary)
             control_epochs.append(epochs)
             if individual_plots:
                 figure_path = fish_figures_folder + f'/{name}.png'
@@ -162,11 +165,85 @@ for experiment in experiments:
             bouts = data['bouts']
             summary = MZB.compute_bouts_per_minute(bouts, 25)
             epochs = MZB.compute_sleep_epochs(bouts, lights, 25)
-            test_bpm.append(summary)
+            test_wells.append(well_number)
+            test_summary.append(summary)
             test_epochs.append(epochs)
             if individual_plots:
                 figure_path = fish_figures_folder + f'/{name}.png'
                 print(f"Plotting Test: {figure_path}")
                 plot_individual_analysis(summary, name, figure_path)
+
+        # Determine longest fish trace
+        num_control_fish = len(control_summary)
+        num_test_fish = len(test_summary)
+        num_fish = num_control_fish + num_test_fish
+        max_length = 0
+        for a in control_summary:
+            this_length = len(a)
+            if this_length > max_length:
+                max_length = this_length
+        for a in test_summary:
+            this_length = len(a)
+            if this_length > max_length:
+                max_length = this_length
+        control_summary_array = np.empty((num_control_fish, max_length, 6))
+        test_summary_array = np.empty((num_test_fish, max_length, 6))
+        control_summary_array[:] = np.nan
+        test_summary_array[:] = np.nan
+
+        # Fill arrays
+        for i, a in enumerate(control_summary):
+            this_length = len(a)
+            control_summary_array[i, 0:this_length] = a
+        control_mean_bpm = np.nanmean(control_summary_array[:,:,0], 0)
+        for i, a in enumerate(test_summary):
+            this_length = len(a)
+            test_summary_array[i, 0:this_length] = a
+        test_mean_bpm = np.nanmean(test_summary_array[:,:,0], 0)
+
+        # Plot bout summary (per minute) comparison
+        titles = ["BPM","Bout Durations","Bout Max Amps", "Bout Total Amps", "Bout Distances", "Bout Turns"]
+        fig = plt.figure(figsize=(16, 9))
+        plt.suptitle(f'Sleep: {path}')
+        for i in range(6):
+            plt.subplot(2,3,i+1)
+            plt.title(titles[i])
+            for night in lights:
+                plt.axvspan(night[0], night[1], facecolor='0.2', alpha=0.15)
+            plt.plot(np.nanmean(control_summary_array[:,:,i], 0), 'b', alpha=0.5)
+            plt.plot(np.nanmean(test_summary_array[:,:,i], 0), 'r', alpha=0.5)
+        summary_figure_path = figures_folder + f'/bout_summary.png'
+        plt.savefig(summary_figure_path, dpi=180)
+        plt.show()
+        plt.close()
+
+        # Plot per fish day/night sleep epochs
+        fig = plt.figure(figsize=(5, 5))
+        plt.subplot(1,2,1)
+        for i, e in enumerate(control_epochs):
+            plt.text(e[0], e[1], str(control_wells[i]))
+            plt.plot(e[0], e[1], 'bo')
+            print(i)
+        for i, e in enumerate(test_epochs):
+            plt.text(e[0], e[1], str(test_wells[i]))
+            plt.plot(e[0], e[1], 'ro')
+        plt.xlabel("#Night Sleep Epochs")
+        plt.ylabel("#Day Sleep Epochs")
+        plt.subplot(1,2,2)
+        for i, e in enumerate(control_epochs):
+            plt.text(e[2]/60, e[3]/60, str(control_wells[i]))
+            plt.plot(e[2]/60, e[3]/60, 'bo')
+            print(i)
+        for i, e in enumerate(test_epochs):
+            plt.text(e[2]/60, e[3]/60, str(test_wells[i]))
+            plt.plot(e[2]/60, e[3]/60, 'ro')
+        plt.xlabel("Night Sleep Duration (min)")
+        plt.ylabel("Day Sleep Duration (min)")
+        summary_figure_path = figures_folder + f'/sleep_summary.png'
+        plt.savefig(summary_figure_path, dpi=180)
+        plt.show()
+        plt.close()
+
+        # Do other analysis
 
 #FIN
