@@ -41,9 +41,9 @@ importlib.reload(MZU)
 summary_path = base_path + "/Sumamry_Info.xlsx"
 
 # Specify experiment abbreviation
-experiments = [#'Akap11', 
-               #'Cacna1g', 
-               'Gria3', 
+experiments = [#'Akap11',
+               #'Cacna1g',
+               'Gria3',
                #'Grin2a',
                #'Hcn4',
                #'Herc1',
@@ -56,27 +56,27 @@ experiments = [#'Akap11',
 # Extract experiment
 for experiment in experiments:
     plates, paths, controls, tests = MZU.parse_summary_Sleep(summary_path, experiment)
+    # Report Plate-Path pairs
+    for pl, pa in zip(plates, paths):
+        print(pl, pa)
 
     # Set list of video paths
     path_list = paths
 
-    # DEBUG - truncate path_list to only analyse one experiment
-    #path_list = [paths[1]]
-
     # Summarise experiment
     for p, path in enumerate(path_list):
-        print(path)
-
-        ## DEBUG: Trio
-        #if (plates[p] == 2):
-        #    continue
-        # DEBUG: Gria3
-        if (plates[p] == 2):
+        # DEBUG (select a specific plate to work on)
+        if (plates[p] != 16):
             continue
+
+        # Print current path
+        print(f"Working on path:{path}")
 
         # Create Paths
         video_path = base_path + '/Sleep' + path
         output_folder = os.path.dirname(video_path) + '/analysis'
+        experiment_name = path.split('/')[1]
+        experiment_folder = base_path + '/Sleep/' + experiment_name
         plate_folder = output_folder + '/plate'
         responses_folder = output_folder + '/responses'
         controls_folder = responses_folder + '/controls'
@@ -90,7 +90,7 @@ for experiment in experiments:
 
         # Empty figures folder
         MZU.clear_folder(figures_folder)
-        
+
         # Create plate structure
         name = path.split('/')[-1][:-4]
         plate = MZP.Plate(name)

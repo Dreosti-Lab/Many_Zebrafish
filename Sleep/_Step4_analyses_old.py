@@ -47,13 +47,13 @@ individual_plots = False
 # Specify experiment abbreviation
 experiments = [#'Akap11', 
                #'Cacna1g', 
-               'Gria3', 
+               #'Gria3', 
                #'Grin2a',
                #'Hcn4',
                #'Herc1',
                #'Nr3c2',
                #'Sp4',
-               #'Trio',
+               'Trio',
                #'Xpo7'
                ]
 
@@ -63,9 +63,6 @@ for experiment in experiments:
 
     # Set list of video paths
     path_list = paths
-
-    ## DEBUG - truncate path_list to only analyse one experiment
-    #path_list = [paths[1]]  
 
     # Bulk structures
     all_controls_mean_summary = []
@@ -77,11 +74,8 @@ for experiment in experiments:
     for p, path in enumerate(path_list):
         print(path)
 
-        ## DEBUG: Trio
-        #if (plates[p] == 2) or (plates[p] == 23):
-        #    continue
-        # DEBUG: Gria3
-        if (plates[p] == 2):
+        # DEBUG
+        if (plates[p] != 22):
             continue
 
         # Create Paths
