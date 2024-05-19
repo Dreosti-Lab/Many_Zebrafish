@@ -129,9 +129,9 @@ for experiment in experiments:
         # Create template "lights.csv" (if it does not exist)
         if not os.path.isfile(lights_path):
             f = open(lights_path, 'w')
-            f.write("sunrise1,sunset1\n")
-            f.write("sunrise2,sunset2\n")
-            f.write("sunrise3,sunset3\n")
+            f.write("sunset1,sunrise1\n")
+            f.write("sunset2,sunrise2\n")
+            f.write("sunset3,sunrise3\n")
             f.close()
 
         # Plot BPM average (select sunrise, sunsets)
