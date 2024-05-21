@@ -22,6 +22,7 @@ import glob
 import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Import modules
 import MZ_plate as MZP
@@ -39,27 +40,58 @@ importlib.reload(MZU)
 #----------------------------------------------------------
 # Helper Functions
 # ---------------------------------------------------------
-def plot_individual_analysis(summary, name, figure_path):
-    fig = plt.figure(figsize=(10, 10))
+def plot_individual_analysis(summary, timecourse, lights, name, figure_path):
+    fig = plt.figure(figsize=(12, 4))
     plt.suptitle(f'Sleep: {name}')
-    plt.subplot(3,2,1)
+    
+    ax = plt.subplot(2,4,1)
+    for night in lights:
+        plt.axvspan(night[0], night[1], facecolor='0.2', alpha=0.15)
     plt.plot(summary[:,0])
     plt.title('Bouts per Minute')
-    plt.subplot(3,2,2)
+    x_axis = ax.axes.get_xaxis()
+    x_axis.set_visible(False)
+    
+    ax = plt.subplot(2,4,2)
+    for night in lights:
+        plt.axvspan(night[0], night[1], facecolor='0.2', alpha=0.15)
     plt.plot(summary[:,1])
     plt.title('Durations')
-    plt.subplot(3,2,3)
+    x_axis = ax.axes.get_xaxis()
+    x_axis.set_visible(False)
+    
+    ax = plt.subplot(2,4,3)
+    for night in lights:
+        plt.axvspan(night[0], night[1], facecolor='0.2', alpha=0.15)
     plt.plot(summary[:,2])
     plt.title('Max Motion')
-    plt.subplot(3,2,4)
+    x_axis = ax.axes.get_xaxis()
+    x_axis.set_visible(False)
+   
+    plt.subplot(2,4,4)
+    for night in lights:
+        plt.axvspan(night[0]/10, night[1]/10, facecolor='0.2', alpha=0.15)
+    plt.plot(timecourse)
+    plt.title('Timecourse (secs asleep/10 min)')
+    
+    plt.subplot(2,4,5)
+    for night in lights:
+        plt.axvspan(night[0], night[1], facecolor='0.2', alpha=0.15)
     plt.plot(summary[:,3])
     plt.title('Total Motion')
-    plt.subplot(3,2,5)
+    
+    plt.subplot(2,4,6)
+    for night in lights:
+        plt.axvspan(night[0], night[1], facecolor='0.2', alpha=0.15)
     plt.plot(summary[:,4])
     plt.title('Distance')
-    plt.subplot(3,2,6)
+    
+    plt.subplot(2,4,7)
+    for night in lights:
+        plt.axvspan(night[0], night[1], facecolor='0.2', alpha=0.15)
     plt.plot(summary[:,5])
     plt.title('Turning')
+    
     plt.savefig(figure_path, dpi=180)
     plt.cla()
     plt.close()
@@ -72,17 +104,18 @@ summary_path = base_path + "/Sumamry_Info.xlsx"
 
 # Specify analysis parameters
 individual_plots = True
+show_summary_plots = True
 
 # Specify experiment abbreviation
 experiments = [#'Akap11', 
                #'Cacna1g', 
-               'Gria3', 
+               #'Gria3', 
                #'Grin2a',
                #'Hcn4',
                #'Herc1',
                #'Nr3c2',
                #'Sp4',
-               #'Trio',
+               'Trio',
                #'Xpo7'
                ]
 
@@ -99,7 +132,7 @@ for experiment in experiments:
     # Analyse experiment
     for p, path in enumerate(path_list):
         # DEBUG (select a specific plate to work on)
-        if (plates[p] != 3):
+        if (plates[p] != 25):
             continue
 
         # Print current path
@@ -120,7 +153,7 @@ for experiment in experiments:
         if not os.path.isfile(lights_path):
             print("No lights.csv file, please run previous step.")
             exit(-1)
-        lights = np.genfromtxt(lights_path, delimiter=',')
+        lights = np.genfromtxt(lights_path, delimiter=',', encoding="utf-8-sig", dtype=int)
         num_days = lights.shape[0]
         if (num_days < 2) or (lights[0,0] == "sunrise1"):
             print("Incorrect lights.csv file, please check previous step.")
@@ -135,9 +168,11 @@ for experiment in experiments:
         control_wells = []
         control_summary = []
         control_epochs = []
+        control_timecourses = []
         test_wells = []
         test_summary = []
         test_epochs = []
+        test_timecourses = []
 
         # Analyse all control bouts
         control_paths = glob.glob(controls_folder+'/*.npz')
@@ -148,13 +183,15 @@ for experiment in experiments:
             bouts = data['bouts']
             summary = MZB.compute_bouts_per_minute(bouts, 25)
             epochs = MZB.compute_sleep_epochs(bouts, lights, 25)
+            timecourse = MZB.compute_sleep_timecourse(bouts, lights, 25)
             control_wells.append(well_number)
             control_summary.append(summary)
             control_epochs.append(epochs)
+            control_timecourses.append(timecourse)
             if individual_plots:
                 figure_path = fish_figures_folder + f'/{name}.png'
                 print(f"Plotting Control: {figure_path}")
-                plot_individual_analysis(summary, name, figure_path)
+                plot_individual_analysis(summary, timecourse, lights, name, figure_path)
 
         # Analyse all test bouts
         test_paths = glob.glob(tests_folder+'/*.npz')
@@ -165,13 +202,15 @@ for experiment in experiments:
             bouts = data['bouts']
             summary = MZB.compute_bouts_per_minute(bouts, 25)
             epochs = MZB.compute_sleep_epochs(bouts, lights, 25)
+            timecourse = MZB.compute_sleep_timecourse(bouts, lights, 25)
             test_wells.append(well_number)
             test_summary.append(summary)
             test_epochs.append(epochs)
+            test_timecourses.append(timecourse)
             if individual_plots:
                 figure_path = fish_figures_folder + f'/{name}.png'
                 print(f"Plotting Test: {figure_path}")
-                plot_individual_analysis(summary, name, figure_path)
+                plot_individual_analysis(summary, timecourse, lights, name, figure_path)
 
         # Determine longest fish trace
         num_control_fish = len(control_summary)
@@ -191,7 +230,7 @@ for experiment in experiments:
         control_summary_array[:] = np.nan
         test_summary_array[:] = np.nan
 
-        # Fill arrays
+        # Fill summary arrays
         for i, a in enumerate(control_summary):
             this_length = len(a)
             control_summary_array[i, 0:this_length] = a
@@ -214,35 +253,74 @@ for experiment in experiments:
             plt.plot(np.nanmean(test_summary_array[:,:,i], 0), 'r', alpha=0.5)
         summary_figure_path = figures_folder + f'/bout_summary.png'
         plt.savefig(summary_figure_path, dpi=180)
-        plt.show()
+        if show_summary_plots:
+            plt.show()
         plt.close()
+        summary_data_path = figures_folder + f'/bout_summary.npz'
+        np.savez(summary_data_path, control_summary_array=control_summary_array, test_summary_array=test_summary_array)
 
-        # Plot per fish day/night sleep epochs
-        fig = plt.figure(figsize=(5, 5))
-        plt.subplot(1,2,1)
-        for i, e in enumerate(control_epochs):
-            plt.text(e[0], e[1], str(control_wells[i]))
-            plt.plot(e[0], e[1], 'bo')
-            print(i)
-        for i, e in enumerate(test_epochs):
-            plt.text(e[0], e[1], str(test_wells[i]))
-            plt.plot(e[0], e[1], 'ro')
-        plt.xlabel("#Night Sleep Epochs")
-        plt.ylabel("#Day Sleep Epochs")
-        plt.subplot(1,2,2)
-        for i, e in enumerate(control_epochs):
-            plt.text(e[2]/60, e[3]/60, str(control_wells[i]))
-            plt.plot(e[2]/60, e[3]/60, 'bo')
-            print(i)
-        for i, e in enumerate(test_epochs):
-            plt.text(e[2]/60, e[3]/60, str(test_wells[i]))
-            plt.plot(e[2]/60, e[3]/60, 'ro')
-        plt.xlabel("Night Sleep Duration (min)")
-        plt.ylabel("Day Sleep Duration (min)")
+        # Create timecourse arrays
+        control_timecourse_array = np.array(control_timecourses)
+        test_timecourse_array = np.array(test_timecourses)
+
+        # Plot sleep timecourse summary (per 10 minute) comparison
+        fig = plt.figure(figsize=(9, 6))
+        for night in lights:
+            plt.axvspan(night[0]/10, night[1]/10, facecolor='0.2', alpha=0.15)
+        #plt.plot(control_timecourse_array.T, 'b', alpha=0.01)
+        #plt.plot(test_timecourse_array.T, 'r', alpha=0.01)
+        plt.plot(np.nanmean(control_timecourse_array, 0), 'b', alpha=0.5)
+        plt.plot(np.nanmean(test_timecourse_array, 0), 'r', alpha=0.5)
+        plt.title('Sleep Timecourse')
+        plt.ylabel('Seconds asleep per 10 minutes')
+        summary_figure_path = figures_folder + f'/timecourse_summary.png'
+        plt.savefig(summary_figure_path, dpi=180)
+        if show_summary_plots:
+            plt.show()
+        plt.close()
+        summary_data_path = figures_folder + f'/timecourse_summary.npz'
+        np.savez(summary_data_path, control_timecourse_array=control_timecourse_array, test_timecourse_array=test_timecourse_array)
+
+        # Plot per fish day/night sleep epochs - controls vs tests
+        control_epochs_array = np.array(control_epochs)
+        test_epochs_array = np.array(test_epochs)
+
+        fig = plt.figure(figsize=(10, 5))
+        night_data = [control_epochs_array[:,0], test_epochs_array[:,0]]
+        day_data = [control_epochs_array[:,1], test_epochs_array[:,1]]
+        plt.subplot(2,2,1)
+        plt.title('Night Sleep')
+        sns.stripplot(data=night_data)
+        sns.pointplot(data=night_data, linestyle="none", errorbar=None, marker="_", color="k", markersize=20, markeredgewidth=3)
+        plt.ylabel("#Sleep Epochs")
+        plt.xticks([0,1], ["Scrambled", f"{experiment}"])
+        plt.subplot(2,2,2)
+        plt.title('Day Sleep')
+        sns.stripplot(data=day_data)
+        sns.pointplot(data=day_data, linestyle="none", errorbar=None, marker="_", color="k", markersize=20, markeredgewidth=3)
+        plt.ylabel("#Sleep Epochs")
+        plt.xticks([0,1], ["Scrambled", f"{experiment}"])
+
+        night_data = [control_epochs_array[:,2], test_epochs_array[:,2]]
+        day_data = [control_epochs_array[:,3], test_epochs_array[:,3]]
+        plt.subplot(2,2,3)
+        sns.stripplot(data=night_data)
+        sns.pointplot(data=night_data, linestyle="none", errorbar=None, marker="_", color="k", markersize=20, markeredgewidth=3)
+        plt.ylabel("Sleep Duration (min)")
+        plt.xticks([0,1], ["Scrambled", f"{experiment}"])
+        plt.subplot(2,2,4)
+        sns.stripplot(data=day_data)
+        sns.pointplot(data=day_data, linestyle="none", errorbar=None, marker="_", color="k", markersize=20, markeredgewidth=3)
+        plt.ylabel("Sleep Duration (min)")
+        plt.xticks([0,1], ["Scrambled", f"{experiment}"])
+
         summary_figure_path = figures_folder + f'/sleep_summary.png'
         plt.savefig(summary_figure_path, dpi=180)
-        plt.show()
+        if show_summary_plots:
+            plt.show()
         plt.close()
+        summary_data_path = figures_folder + f'/sleep_summary.npz'
+        np.savez(summary_data_path, control_epochs_array=control_epochs_array, test_epochs_array=test_epochs_array)
 
         # Do other analysis
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Summarise behaviour in a 96-well Sleep experiment
+Summarise behaviour (bout analysis) in a 96-well Sleep experiment
 
 @author: kampff
 """

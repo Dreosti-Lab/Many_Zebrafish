@@ -132,8 +132,35 @@ def compute_bouts_per_minute(bouts, fps):
     # 6. Mean Turning
     return bout_summary
 
+# Compute sleep timecourse (secs asleep per bin)
+def compute_sleep_timecourse(bouts, lights, fps, secs_per_epoch=60, min_per_bin=10):
+    # - if next bout is more than "secs_per_epoch" away, then asleep
+    sleep_state = np.zeros(int(bouts[-1][2]))
+    for i in range(len(bouts)-1):
+        current_bout_end = int(bouts[i][2])
+        next_bout_start = int(bouts[i+1][0])
+        interval_to_next_bout = int(next_bout_start-current_bout_end)
+        if interval_to_next_bout > (secs_per_epoch * fps):
+            sleep_state[current_bout_end:next_bout_start] = 1
+    last_frame = int(lights[-1,1]*60*fps) + (14*60*60*fps)
+    frames_per_bin = (min_per_bin * 60 * fps)
+    num_bins = last_frame // frames_per_bin
+    final_bin_frame = num_bins * frames_per_bin
+    # Truncate or extend sleep state array to fit full day after final sunrise
+    if len(sleep_state) < final_bin_frame:
+        appendage = np.empty(final_bin_frame-len(sleep_state))
+        appendage[:] = np.nan
+        sleep_state = np.hstack((sleep_state, appendage))
+    else:
+        sleep_state = sleep_state[:final_bin_frame]
+    # Bin sleep state
+    reshaped = np.reshape(sleep_state, (num_bins, frames_per_bin))
+    frames_sleeping_per_bin = np.sum(reshaped, axis=1)
+    seconds_sleeping_per_bin = frames_sleeping_per_bin / fps
+    return seconds_sleeping_per_bin
+
 # Compute sleep epochs
-def compute_sleep_epochs(bouts, lights, fps, min_per_epoch=60):
+def compute_sleep_epochs(bouts, lights, fps, secs_per_epoch=60):
     intervals = np.diff(bouts[:,2], prepend=0)/fps
     sunsets = lights[:,0]
     sunrises = lights[:,1]
@@ -145,8 +172,8 @@ def compute_sleep_epochs(bouts, lights, fps, min_per_epoch=60):
         night_indices = np.where((bouts[:,0] >= set_frame) * ((bouts[:,0] < rise_frame)))[0]
         night_intervals = intervals[night_indices]
         # Measure total sleep?
-        sleep_epochs = np.sum(night_intervals >= min_per_epoch)
-        sleep_durations = np.sum(night_intervals[night_intervals >= min_per_epoch])
+        sleep_epochs = np.sum(night_intervals >= secs_per_epoch)
+        sleep_durations = np.sum(night_intervals[night_intervals >= secs_per_epoch]) / 60
         night_epochs.append(sleep_epochs)
         night_durations.append(sleep_durations)
     day_epochs = []
@@ -156,8 +183,8 @@ def compute_sleep_epochs(bouts, lights, fps, min_per_epoch=60):
         set_frame = set*60*fps
         day_indices = np.where((bouts[:,0] >= rise_frame) * ((bouts[:,0] < set_frame)))[0]
         day_intervals = intervals[day_indices]
-        sleep_epochs = np.sum(day_intervals >= min_per_epoch)
-        sleep_durations = np.sum(day_intervals[day_intervals >= min_per_epoch])
+        sleep_epochs = np.sum(day_intervals >= secs_per_epoch)
+        sleep_durations = np.sum(day_intervals[day_intervals >= secs_per_epoch]) / 60
         day_epochs.append(sleep_epochs)
         day_durations.append(sleep_durations)
     return [np.mean(night_epochs), np.mean(day_epochs), np.mean(night_durations), np.mean(day_durations)]

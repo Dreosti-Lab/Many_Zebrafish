@@ -37,6 +37,7 @@ source MZPY/bin/activate
 - scikit-image
 - python-dotenv
 - openpyxl
+- seaborn
 
 For machine learning classifier:
 - torch
@@ -45,7 +46,7 @@ For machine learning classifier:
 
 ```bash
 # Ensure your virtual environment is (active)
-pip install numpy matplotlib opencv-python scikit-image python-dotenv openpyxl
+pip install numpy matplotlib opencv-python scikit-image python-dotenv openpyxl seaborn
 pip install torch torchvision torchsummary
 ```
 
