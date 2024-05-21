@@ -70,6 +70,10 @@ for experiment in experiments:
     experiment_analysis_folder = base_path + '/Sleep' + '/_analysis'
 
     # Create empty containers
+    all_control_bpm_night = np.zeros(0)
+    all_control_bpm_day = np.zeros(0)
+    all_test_bpm_night = np.zeros(0)
+    all_test_bpm_day = np.zeros(0)
     all_control_epochs_night = np.zeros(0)
     all_control_epochs_day = np.zeros(0)
     all_test_epochs_night = np.zeros(0)
@@ -98,17 +102,39 @@ for experiment in experiments:
         if not os.path.isfile(lights_path):
             print("No lights.csv file, please run previous step.")
             exit(-1)
-        lights = np.genfromtxt(lights_path, delimiter=',')
+        lights = np.genfromtxt(lights_path, delimiter=',', encoding="utf-8-sig", dtype=int)
         num_days = lights.shape[0]
         if (num_days < 2) or (lights[0,0] == "sunrise1"):
             print("Incorrect lights.csv file, please check previous step.")
             exit(-1)
         
-        ## Load (bout) summary data
-        #bout_summary_path = figures_folder + f'/bout_summary.npz'
-        #bout_summary = np.load(bout_summary_path)
-        #control_summary_array = bout_summary['control_summary_array']
-        #test_summary_array = bout_summary['test_summary_array']
+        # Load (bout) summary data
+        bout_summary_path = figures_folder + f'/bout_summary.npz'
+        bout_summary = np.load(bout_summary_path)
+        control_summary_array = bout_summary['control_summary_array']
+        test_summary_array = bout_summary['test_summary_array']
+
+        # Build day(0)/night(1) per minute filter
+        num_minutes = control_summary_array.shape[1]
+        day_night_filter = np.zeros(num_minutes, dtype=bool)
+        for night in lights:
+            day_night_filter[night[0]:night[1]] = True
+        num_night_minutes = np.sum(day_night_filter)
+        num_day_minutes = num_minutes - num_night_minutes
+
+        # Compte day/night bouts per minute (activity) for controls vs tests and normalize (percentage of controls)
+        control_bpm_night = np.nanmean(control_summary_array[:,day_night_filter,0], axis=1)
+        control_bpm_day = np.nanmean(control_summary_array[:,np.logical_not(day_night_filter),0], axis=1)
+        test_bpm_night = np.nanmean(test_summary_array[:,day_night_filter,0], axis=1)
+        test_bpm_day = np.nanmean(test_summary_array[:,np.logical_not(day_night_filter),0], axis=1)
+
+        mean_control_bpm_night = np.mean(control_bpm_night)
+        control_bpm_night_norm = 100.0 * (control_bpm_night - mean_control_bpm_night) / mean_control_bpm_night
+        test_bpm_night_norm = 100.0 * (test_bpm_night - mean_control_bpm_night) / mean_control_bpm_night
+
+        mean_control_bpm_day = np.mean(control_bpm_day)
+        control_bpm_day_norm = 100.0 * (control_bpm_day - mean_control_bpm_day) / mean_control_bpm_day
+        test_bpm_day_norm = 100.0 * (test_bpm_day - mean_control_bpm_day) / mean_control_bpm_day
 
         # Load (sleep) epochs data
         sleep_summary_path = figures_folder + f'/sleep_summary.npz'
@@ -142,6 +168,10 @@ for experiment in experiments:
         test_durations_day_norm = 100.0 * (test_durations_day - mean_control_durations_day) / mean_control_durations_day
 
         # Append
+        all_control_bpm_night = np.hstack((all_control_bpm_night, control_bpm_night_norm))
+        all_control_bpm_day = np.hstack((all_control_bpm_day, control_bpm_day_norm))
+        all_test_bpm_night = np.hstack((all_test_bpm_night, test_bpm_night_norm))
+        all_test_bpm_day = np.hstack((all_test_bpm_day, test_bpm_day_norm))
         all_control_epochs_night = np.hstack((all_control_epochs_night, control_epochs_night_norm))
         all_control_epochs_day = np.hstack((all_control_epochs_day, control_epochs_day_norm))
         all_test_epochs_night = np.hstack((all_test_epochs_night, test_epochs_night_norm))
@@ -151,7 +181,29 @@ for experiment in experiments:
         all_test_durations_night = np.hstack((all_test_durations_night, test_durations_night_norm))
         all_test_durations_day = np.hstack((all_test_durations_day, test_durations_day_norm))
 
-    # Summary (combined) plots
+    # Summary (combined) plots ACTIVITY
+    fig = plt.figure(figsize=(10, 5))
+    night_data = [all_control_bpm_night, all_test_bpm_night]
+    day_data = [all_control_bpm_day, all_test_bpm_day]
+    plt.subplot(1,2,1)
+    plt.title('Night Activity')
+    sns.stripplot(data=night_data, alpha=0.25)
+    sns.pointplot(data=night_data, linestyle="none", errorbar=None, marker="_", color="k", markersize=20, markeredgewidth=3)
+    plt.ylabel("Bouts per Minute")
+    plt.xticks([0,1], ["Scrambled", f"{experiment}"])
+    plt.subplot(1,2,2)
+    plt.title('Day Activity')
+    sns.stripplot(data=day_data, alpha=0.25)
+    sns.pointplot(data=day_data, linestyle="none", errorbar=None, marker="_", color="k", markersize=20, markeredgewidth=3)
+    plt.ylabel("Bouts per Minute")
+    plt.xticks([0,1], ["Scrambled", f"{experiment}"])
+
+    combined_summary_figure_path = experiment_analysis_folder + f'/{experiment}_activty_summary.png'
+    plt.savefig(combined_summary_figure_path, dpi=180)
+    plt.show()
+    plt.close()
+
+    # Summary (combined) plots SLEEP
     fig = plt.figure(figsize=(10, 5))
     night_data = [all_control_epochs_night, all_test_epochs_night]
     day_data = [all_control_epochs_day, all_test_epochs_day]
