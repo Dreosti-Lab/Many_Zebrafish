@@ -110,12 +110,12 @@ show_summary_plots = True
 experiments = [#'Akap11', 
                #'Cacna1g', 
                #'Gria3', 
-               #'Grin2a',
+               'Grin2a',
                #'Hcn4',
                #'Herc1',
                #'Nr3c2',
                #'Sp4',
-               'Trio',
+               #'Trio',
                #'Xpo7'
                ]
 
@@ -291,13 +291,13 @@ for experiment in experiments:
         plt.subplot(2,2,1)
         plt.title('Night Sleep')
         sns.stripplot(data=night_data)
-        sns.pointplot(data=night_data, linestyle="none", errorbar=None, marker="_", color="k", markersize=20, markeredgewidth=3)
+        sns.pointplot(data=night_data, linestyle="none", errorbar=('ci', 95), marker=".", color="k", markersize=10, markeredgewidth=1)
         plt.ylabel("#Sleep Epochs")
         plt.xticks([0,1], ["Scrambled", f"{experiment}"])
         plt.subplot(2,2,2)
         plt.title('Day Sleep')
         sns.stripplot(data=day_data)
-        sns.pointplot(data=day_data, linestyle="none", errorbar=None, marker="_", color="k", markersize=20, markeredgewidth=3)
+        sns.pointplot(data=day_data, linestyle="none", errorbar=('ci', 95), marker=".", color="k", markersize=10, markeredgewidth=1)
         plt.ylabel("#Sleep Epochs")
         plt.xticks([0,1], ["Scrambled", f"{experiment}"])
 
@@ -305,12 +305,12 @@ for experiment in experiments:
         day_data = [control_epochs_array[:,3], test_epochs_array[:,3]]
         plt.subplot(2,2,3)
         sns.stripplot(data=night_data)
-        sns.pointplot(data=night_data, linestyle="none", errorbar=None, marker="_", color="k", markersize=20, markeredgewidth=3)
+        sns.pointplot(data=night_data, linestyle="none", errorbar=('ci', 95), marker=".", color="k", markersize=10, markeredgewidth=1)
         plt.ylabel("Sleep Duration (min)")
         plt.xticks([0,1], ["Scrambled", f"{experiment}"])
         plt.subplot(2,2,4)
         sns.stripplot(data=day_data)
-        sns.pointplot(data=day_data, linestyle="none", errorbar=None, marker="_", color="k", markersize=20, markeredgewidth=3)
+        sns.pointplot(data=day_data, linestyle="none", errorbar=('ci', 95), marker=".", color="k", markersize=10, markeredgewidth=1)
         plt.ylabel("Sleep Duration (min)")
         plt.xticks([0,1], ["Scrambled", f"{experiment}"])
 
