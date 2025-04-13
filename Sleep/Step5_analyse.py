@@ -109,8 +109,8 @@ show_summary_plots = True
 # Specify experiment abbreviation
 experiments = [#'Akap11', 
                #'Cacna1g', 
-               #'Gria3', 
-               'Grin2a',
+               'Gria3', 
+               #'Grin2a',
                #'Hcn4',
                #'Herc1',
                #'Nr3c2',
@@ -132,7 +132,7 @@ for experiment in experiments:
     # Analyse experiment
     for p, path in enumerate(path_list):
         # DEBUG (select a specific plate to work on)
-        if (plates[p] != 25):
+        if (plates[p] != 16):
             continue
 
         # Print current path
@@ -239,6 +239,9 @@ for experiment in experiments:
             this_length = len(a)
             test_summary_array[i, 0:this_length] = a
         test_mean_bpm = np.nanmean(test_summary_array[:,:,0], 0)
+
+        plt.plot(control_mean_bpm)
+        plt.show()
 
         # Plot bout summary (per minute) comparison
         titles = ["BPM","Bout Durations","Bout Max Amps", "Bout Total Amps", "Bout Distances", "Bout Turns"]

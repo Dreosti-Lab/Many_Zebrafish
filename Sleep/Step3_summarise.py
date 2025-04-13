@@ -137,6 +137,11 @@ for experiment in experiments:
         plt.savefig(figures_folder + '/intensity.png', dpi=180)
         plt.cla()
         plt.close()
+
+        # Save intensity
+        with open(figures_folder + "/intensity.csv", 'w') as file:
+            for item in all_intensity:
+                ret = file.write(f"{item}\n")
         
         # Save all control bouts
         for c in controls[p]:
