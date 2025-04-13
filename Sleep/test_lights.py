@@ -15,12 +15,9 @@ import sys
 sys.path.append(libs_path)
 
 # Import libraries
-import os
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
-import zipfile
-from io import StringIO
+from datetime import datetime, timedelta
 
 # Import local modules
 import MZ_utilities as MZU
@@ -28,15 +25,58 @@ import MZ_utilities as MZU
 # Reload modules
 import importlib
 importlib.reload(MZU)
-#----------------------------------------------------------
-zip_path = "/run/media/kampff/Crucial X9/Zebrafish/Sleep/220919_10_11_gria3xpo7/220919_10_11_gria3xpo7_rawoutput.zip"
-zip_path = "/run/media/kampff/Crucial X9/Zebrafish/Sleep/220815_14_15_Gria3Trio/220815_14_15_Gria3Trio_rawoutput.zip"
 
-archive = zipfile.ZipFile(zip_path, 'r')
-for zf in archive.filelist:
-    xls_data = StringIO(archive.read(zf.filename).decode('ascii'))
-    data = pd.read_csv(xls_data, sep='\t')
-    lights = np.where(data.type == 109)
-    print(lights)
+#----------------------------------------------------------
+zip_path = base_path + "/grin2agria3/230821_14_grin2agria3_rawoutput.zip"
+phc_path = base_path + "/grin2agria3/20230821-130604.phc"
+output_base_path = phc_path[:-4]
+
+# Get start time
+start_datetime = MZU.get_start_date_time(phc_path)
+
+# Get frame times
+frametimes_A, frametimes_B = MZU.get_ordered_frame_times(zip_path)
+
+# Store frame times
+with open(output_base_path + "_frametimes_A.csv", 'w') as file:
+    for item in frametimes_A:
+        file.write(f"{item}\n")
+with open(output_base_path + "_frametimes_B.csv", 'w') as file:
+    for item in frametimes_B:
+        file.write(f"{item}\n")
+
+# Print frame counts
+print(f"Timestamps A: {len(frametimes_A)} unique values")
+print(f"Timestamps B: {len(frametimes_B)} unique values")
+
+# Convert to seconds
+timestamps_A_sec = np.array(frametimes_A) / 1e6
+timestamps_B_sec = np.array(frametimes_B) / 1e6
+
+# Compute time differences between frames
+intervals_A = np.diff(timestamps_A_sec)
+intervals_B = np.diff(timestamps_B_sec)
+
+# Compute average frame interval and frame rate
+if len(intervals_A) > 0:
+    avg_interval_A = np.mean(intervals_A)
+    frame_rate_A = 1.0 / avg_interval_A
+    print(f"Frame rate for A: {frame_rate_A:.5f} fps")
+else:
+    print("Not enough data to compute frame rate for A")
+if len(intervals_B) > 0:
+    avg_interval_B = np.mean(intervals_B)
+    frame_rate_B = 1.0 / avg_interval_B
+    print(f"Frame rate for B: {frame_rate_B:.5f} fps")
+else:
+    print("Not enough data to compute frame rate for B")
+
+# Compute sunset and sunrise frames
+sunsets_A, sunrises_A = MZU.get_sunset_sunrise_frames(start_datetime, frametimes_A)
+sunsets_B, sunrises_B = MZU.get_sunset_sunrise_frames(start_datetime, frametimes_B)
+
+## Load from file
+#frametimes_A = np.loadtxt(output_base_path + "_frametimes_A.csv")
+#frametimes_B = np.loadtxt(output_base_path + "_frametimes_B.csv")
 
 #FIN

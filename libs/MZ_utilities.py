@@ -13,6 +13,11 @@ import math
 import glob
 import shutil
 import cv2
+import re
+from datetime import datetime, timedelta
+import zipfile
+from io import StringIO
+import pandas as pd
 
 # Utilities for analysing 96-well plate experiments
 
@@ -194,9 +199,99 @@ def clear_folder(folder_path):
     os.makedirs(folder_path)
     return
 
-# Load raw zip exported from ZebraLab
-def load_raw_zip():
-    
-    return
+# Extract experiment start time
+def get_start_date_time(phc_path):
+    # Read first line of PHC file
+    with open(phc_path, 'r', encoding='utf-8') as f:
+        line = f.readline()
+
+    # Extract RunDate and RunTime using regex
+    match = re.search(r'RunDate="([\d/]+)".*?RunTime="([\d:]+ [APM]+)"', line)
+    if match:
+        date_str = match.group(1)  # e.g., '2022/09/19'
+        time_str = match.group(2)  # e.g., '7:09:55 PM'
+        
+        # Combine and parse into datetime
+        combined_str = f"{date_str} {time_str}"
+        dt = datetime.strptime(combined_str, "%Y/%m/%d %I:%M:%S %p")
+        return dt
+    else:
+        raise ValueError("RunDate and RunTime not found in the first line.")
+
+# Extract ordered frame times
+def get_ordered_frame_times(zip_path):
+    # Initialize sets to store unique timestamps per plate
+    timestamps_A = set()
+    timestamps_B = set()
+
+    # Open the archive
+    archive = zipfile.ZipFile(zip_path, 'r')
+    xls_files = [zf for zf in archive.filelist if zf.filename.lower().endswith(('.xls', '.xlsx'))]
+
+    # Loop through all XLS files
+    for i, zf in enumerate(xls_files):
+        try:
+            raw = archive.read(zf.filename).decode('ascii')
+            df = pd.read_csv(StringIO(raw), sep='\t')
+        except Exception as e:
+            print(f"Error reading {zf.filename}: {e}")
+            continue
+
+        # Filter rows with numeric locations and timestamps
+        df = df[df['location'].str.startswith('C') & df['abstime'].apply(lambda x: str(x).isdigit())]
+
+        # Extract location numbers
+        df['loc_num'] = df['location'].str[1:].astype(int)
+        df['ts'] = df['abstime'].astype(int)
+
+        # Apply masks for location ranges
+        mask_A = df['loc_num'].between(1, 96)
+        mask_B = df['loc_num'].between(97, 192)
+
+        # Add timestamps to corresponding sets
+        timestamps_A.update(df.loc[mask_A, 'ts'])
+        timestamps_B.update(df.loc[mask_B, 'ts'])
+
+        # Report
+        print(f"Processed {i}/{len(xls_files)}: {zf.filename}")
+
+    # Convert to sorted lists
+    sorted_A = sorted(timestamps_A)
+    sorted_B = sorted(timestamps_B)
+
+    return sorted_A, sorted_B
+
+# Extract sunset and sunrise frame indices
+def get_sunset_sunrise_frames(start_datetime, frametimes):
+    MICROSECONDS_IN_DAY = 24 * 60 * 60 * 1_000_000
+    MICROSECONDS_IN_10_HOURS = 10 * 60 * 60 * 1_000_000
+
+    # Compute frame time offsets
+    frame_offsets = np.array(frametimes) - frametimes[0]
+
+    # Compute first sunset (11 PM on the same day, or next day if already past)
+    first_sunset_dt = start_datetime.replace(hour=23, minute=0, second=0, microsecond=0)
+    first_sunset_us = int((first_sunset_dt - start_datetime).total_seconds() * 1e6)
+    if start_datetime >= first_sunset_dt:
+        print("Experiment Flaw: started after 11 pm")
+        first_sunset_dt += timedelta(days=1)
+
+    # List sunset and sunrise offset times
+    sunset_offsets = []
+    sunrise_offsets = []
+    max_us = frametimes[-1]
+    current_sunset_us = first_sunset_us
+    while current_sunset_us <= max_us:
+        sunset_offsets.append(current_sunset_us)
+        sunrise_offsets.append(current_sunset_us + MICROSECONDS_IN_10_HOURS)  # sunrise = 10 hrs after sunset
+        current_sunset_us += MICROSECONDS_IN_DAY
+    print(sunset_offsets)
+    print(sunrise_offsets)
+
+    # Use searchsorted to get frame indices
+    sunset_indices = np.searchsorted(frame_offsets, sunset_offsets, side='right')
+    sunrise_indices = np.searchsorted(frame_offsets, sunrise_offsets, side='right')
+
+    return sunset_indices, sunrise_indices
 
 #FIN
