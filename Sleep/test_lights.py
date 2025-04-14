@@ -27,8 +27,12 @@ import importlib
 importlib.reload(MZU)
 
 #----------------------------------------------------------
-zip_path = base_path + "/grin2agria3/230821_14_grin2agria3_rawoutput.zip"
-phc_path = base_path + "/grin2agria3/20230821-130604.phc"
+#zip_path = base_path + "/grin2agria3/230821_14_grin2agria3_rawoutput.zip"
+#phc_path = base_path + "/grin2agria3/20230821-130604.phc"
+#output_base_path = phc_path[:-4]
+
+zip_path = base_path + "/Sleep/220815_14_15_Gria3Trio/220815_14_15_Gria3Trio_rawoutput.zip"
+phc_path = base_path + "/Sleep/220815_14_15_Gria3Trio/220815_14_15_Gria3Trio.phc"
 output_base_path = phc_path[:-4]
 
 # Get start time
@@ -74,9 +78,5 @@ else:
 # Compute sunset and sunrise frames
 sunsets_A, sunrises_A = MZU.get_sunset_sunrise_frames(start_datetime, frametimes_A)
 sunsets_B, sunrises_B = MZU.get_sunset_sunrise_frames(start_datetime, frametimes_B)
-
-## Load from file
-#frametimes_A = np.loadtxt(output_base_path + "_frametimes_A.csv")
-#frametimes_B = np.loadtxt(output_base_path + "_frametimes_B.csv")
 
 #FIN
