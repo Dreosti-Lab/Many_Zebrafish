@@ -98,7 +98,6 @@ for experiment in experiments:
             bouts = data['bouts']
             summary = MZB.compute_bouts_per_minute(bouts, 25)
             all_bpm.append(summary)
-            print(control_path)
 
         # Analyse all test bouts
         test_paths = glob.glob(tests_folder+'/*.npz')
@@ -109,7 +108,6 @@ for experiment in experiments:
             bouts = data['bouts']
             summary = MZB.compute_bouts_per_minute(bouts, 25)
             all_bpm.append(summary)
-            print(test_path)
 
         # Determine longest fish trace
         num_fish = len(all_bpm)
@@ -128,6 +126,7 @@ for experiment in experiments:
 
         # Create template "lights.csv" (if it does not exist)
         if not os.path.isfile(lights_path):
+            print(f"Generating Lights CSV: {lights_path}")
             f = open(lights_path, 'w')
             f.write("sunset1,sunrise1\n")
             f.write("sunset2,sunrise2\n")
